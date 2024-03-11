@@ -6,4 +6,4 @@ This is an implementation of Lomb-Scargle periodogram with several non-conventio
 - it can compute the false positive probability in a very roboust way (not assuming Gaussian noise)
 
 Application usage:
-Reanalysis of https://academic.oup.com/mnras/article/463/2/2145/2589684
+reanalysis of https://academic.oup.com/mnras/article/463/2/2145/2589684 .
