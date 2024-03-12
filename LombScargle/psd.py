@@ -29,7 +29,7 @@ def nlog_density(time, data, err, fmin, fmax):
         
         # likelihood ratio (at maximal amplitudes) = log p(x|freq, params) / p(x|params)
         # note that this is not the maximum log-likelihood ratio, because params are not separately optimize under the null
-        periodogram_score = periodogram.func(time, data, floating_mean= False, sqrt_cov= sqrt_cov)(freq)
+        periodogram_score = periodogram.func(time, data, floating_mean= False, sqrt_cov= sqrt_cov)(freq)[0]
         log_det = jnp.sum(jnp.log(jnp.square(jnp.diag(sqrt_cov))))
         logp_ratio = -0.5 * periodogram_score - 0.5 * log_det 
         

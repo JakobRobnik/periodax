@@ -20,7 +20,7 @@ def integrate(f, x, w):
 
 def get_scheme(d, order):
     """reads schemes that were copied from quadpy"""
-    dirr = 'bayes_factor/quadpy/e'+str(d)+'r2/'
+    dirr = 'hypothesis_testing/quadpy/e'+str(d)+'r2/'
     x = jnp.load(dirr + 'points'+str(order)+'.npy').T
     w = jnp.load(dirr + 'weights'+str(order)+'.npy')
     
