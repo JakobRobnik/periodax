@@ -123,18 +123,13 @@ def log_prob_null(data, sqrt_cov):
     return -0.5 * jnp.dot(data, weight_func(data)) -0.5 * log_det
     
 
-def covariance(t, cov_func):
-    """Compute the covariance matrix S_ij = cov_func(t_i, t_j)"""
-    t1, t2 = jnp.meshgrid(t, t)
-    return cov_func(t1, t2)
-
-
 def _drifting_freq(t, freq, mode_spread):
     """null template with the drifting frequency
     freq: base frequency"""
     tmin, tmax = jnp.min(t), jnp.max(t)
     time_span = tmax-tmin
     return freq + (((t-tmin) / time_span) - 0.5) * mode_spread / time_span
+
 
 drifting_freq = jax.vmap(_drifting_freq, (None, 0, None)) #vectorized over the base frequency
 

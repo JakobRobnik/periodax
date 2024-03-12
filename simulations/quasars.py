@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import pandas as pd
 
-from LombScargle import periodogram
+from LombScargle import periodogram, psd
 
 
 # setup
@@ -23,4 +23,4 @@ print(T)
 fmin, fmax = 1./T, 1./60.
 #freq_injected = 1./200.
 freq = jnp.logspace(jnp.log10(fmin), jnp.log10(fmax), 1000)
-cov = periodogram.covariance(time, drw_kernel(sigma= 0.1, tau= 200.)) + jnp.diag(jnp.square(mag_err))
+cov = psd.covariance(time, drw_kernel(sigma= 0.1, tau= 200.), mag_err) 
