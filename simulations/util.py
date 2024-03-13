@@ -22,7 +22,7 @@ def regular_spaced(key, PSD, mask):
 
 def irregular_spaced(key, cov):
     
-    return jnp.linalg.cholesky(cov) @ jax.random.normal(key, (cov.shape[0], ))
+    return jnp.linalg.cholesky(cov) @ jax.random.normal(key, shape= (cov.shape[0], ))
 
 
 

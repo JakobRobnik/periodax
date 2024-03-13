@@ -98,12 +98,12 @@ def get_weight_func(sqrt_cov):
     elif len(sqrt_cov.shape) == 1:
         return lambda x: x / jnp.square(sqrt_cov)
     else:
-        return lambda x: jax.scipy.linalg.cho_solve((sqrt_cov, True), x) 
+        return lambda x: jax.scipy.linalg.cho_solve((sqrt_cov, True), x)
     
     
 def func(time, data, floating_mean= False, sqrt_cov= None):
     """sqrt_cov is the square root of a noise covariance matrix. It can be: 
-            None: periodogram will assum equal error, non-correlated noise
+            None: periodogram will assume equal error, non-correlated noise
             1d array: non-equal error, non-correlated noise. In this case sqrt_cov[i] is the error of data[i]
             2d array: correlated noise, this is the square root of the covariance matrix, meaning that it is L in its Cholesky decomposition Cov = L L^T. It can be obtained e.g. by L = jnp.linalg.cholesky(Cov)
     """
@@ -116,6 +116,7 @@ def func(time, data, floating_mean= False, sqrt_cov= None):
 
     else:
         return lambda freq: compute2(time, data, freq, weight_func)
+
 
 def log_prob_null(data, sqrt_cov):
     weight_func = get_weight_func(sqrt_cov)

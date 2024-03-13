@@ -42,7 +42,6 @@ def quadrature(nlogp, MAP, quad_scheme):
     """
     
     d = len(MAP.y)
-        
     ### go in the basis where the covariance matrix is the identity ###
     detCov = jnp.linalg.det(MAP.cov)
     D, Q = jnp.linalg.eigh(MAP.cov)
@@ -54,11 +53,10 @@ def quadrature(nlogp, MAP, quad_scheme):
         return jnp.exp(-nlogp(z) + MAP.nlogp + jnp.sum(jnp.square(X))) # residual integrand in this basis
     
     ### do the integral ###
-    val = quad.integrate(residual_integrand, *quad_scheme) 
+    val = quad.integrate(residual_integrand, *quad_scheme, d) 
     
     val *= jnp.sqrt(2**d * detCov) # for the change of basis
     logB = - MAP.nlogp + jnp.log(val)
-
     return logB
 
 
@@ -66,24 +64,27 @@ def quadrature(nlogp, MAP, quad_scheme):
 def logB(time, data, err_data, freq, floating_mean= False):
     """log Bayes factor for the sinusoidal variability in the correlated Gaussian noise (ignores the marginalization over the amplitude parameters)"""
     
-    null, alternative = psd.nlog_density(time, data, err_data, freq[0], freq[-1])
-    
+    null, alternative = psd.nlog_density(time, data, err_data, freq[0], freq[-1], floating_mean)
+
     ### analyze the null model ###
     y_init = jnp.log(jnp.array([0.1, 120])) # mode of the prior distribution
-    map = optimize(null, y_init)
-    log_ev0 = quadrature(null, map, e2r2)
+    map0 = optimize(null, y_init)
+    #print('null params:', jnp.exp(map0.y))
+    log_ev0 = quadrature(null, map0, e2r2)
     
     ### analyze the alternative model ###
     # find the best candidate for the alternative
-    cov = psd.covariance(time, psd.drw_kernel(*jnp.exp(map.y)), err_data)
+    cov = psd.covariance(time, psd.drw_kernel(*jnp.exp(map0.y)), err_data)
     score, _ = jax.vmap(periodogram.func(time, data, floating_mean, jnp.linalg.cholesky(cov)))(freq)
     freq_best = freq[jnp.argmax(score)]
+    print('best period: ', 1/freq_best, 'score: ', jnp.max(score))
     
     # compute the evidence
-    y_init = jnp.array([jnp.log(freq_best), *map.y])
-    map = optimize(alternative, y_init)
-    log_ev1 = quadrature(alternative, map, e3r2)
-    
+    y_init = jnp.array([jnp.log(freq_best), *map0.y])
+    map1 = optimize(alternative, y_init)
+    #print('best period ', jnp.exp(-map1.y[0]), 'psd params: ', jnp.exp(map1.y[1:]))
+    log_ev1 = quadrature(alternative, map1, e3r2)
+    print(log_ev1, log_ev0)
     
     ### return the log Bayes factor and the optimal parameters ###
-    return log_ev1 - log_ev0, jnp.exp(map.y)
+    return log_ev1 - log_ev0, jnp.exp(map1.y)

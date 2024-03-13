@@ -7,14 +7,14 @@ import jax
 import jax.numpy as jnp
 
 
-def integrate(f, x, w):
+def integrate(f, x, w, d):
     """approximates the integral I = int e^{-x^2} f(x) dx for a three dimensional x by a quadrature:
         I = sum_k f(x_k) w_k
         x: points where the f is evaluated
         w: weights for those points
     """
     
-    return jnp.sum(w * jax.vmap(f)(x)) * jnp.power(jnp.pi, 1.5) # this factor is for the integral e^{-x^2} dx = pi^3/2
+    return jnp.sum(w * jax.vmap(f)(x)) * jnp.power(jnp.pi, d * 0.5) # this factor is for the integral e^{-x^2} dx = pi^d/2
 
 
 

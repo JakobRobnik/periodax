@@ -9,11 +9,11 @@ drw_kernel = lambda sigma, tau: lambda t1, t2: jnp.square(sigma) * jnp.exp(-jnp.
 def covariance(t, cov_func, errors):
     """Compute the covariance matrix S_ij = cov_func(t_i, t_j) + delta_ij err(t_i)"""
     t1, t2 = jnp.meshgrid(t, t)
-    return cov_func(t1, t2) + + jnp.diag(jnp.square(errors))
+    return cov_func(t1, t2) + jnp.diag(jnp.square(errors))
 
 
 
-def nlog_density(time, data, err, fmin, fmax):
+def nlog_density(time, data, err, fmin, fmax, floating_mean= True):
     
     
     def likelihood_alternative(y):
@@ -29,13 +29,11 @@ def nlog_density(time, data, err, fmin, fmax):
         
         # likelihood ratio (at maximal amplitudes) = log p(x|freq, params) / p(x|params)
         # note that this is not the maximum log-likelihood ratio, because params are not separately optimize under the null
-        periodogram_score = periodogram.func(time, data, floating_mean= False, sqrt_cov= sqrt_cov)(freq)[0]
-        log_det = jnp.sum(jnp.log(jnp.square(jnp.diag(sqrt_cov))))
-        logp_ratio = -0.5 * periodogram_score - 0.5 * log_det 
+        nlogp_ratio = 0.5* periodogram.func(time, data, floating_mean= floating_mean, sqrt_cov= sqrt_cov)(freq)[0]
         
         # eliminate p(x | params)
         logp_null = periodogram.log_prob_null(data, sqrt_cov)
-        return -logp_ratio - logp_null
+        return nlogp_ratio - logp_null
     
     def likelihood_null(y):
         """z = parameters of psd"""        
@@ -48,10 +46,10 @@ def nlog_density(time, data, err, fmin, fmax):
     def prior_null(y):
         log_mu = jnp.log(jnp.array([0.1, 120.]))
         sigma = jnp.array([0.2, 0.9])
-        return jnp.sum(0.5 * jnp.square((y[1:] - log_mu)/sigma) + 0.5 * jnp.log(2 * jnp.pi * jnp.square(sigma)))    
+        return jnp.sum(0.5 * jnp.square((y - log_mu)/sigma) + 0.5 * jnp.log(2 * jnp.pi * jnp.square(sigma)))    
         
     def prior_alternative(y):
-        return jnp.log(jnp.log(fmax/fmin)) + prior_null(y)
+        return prior_null(y[1:]) + jnp.log(jnp.log(fmax/fmin))
 
     def posterior_null(y):
         return prior_null(y) + likelihood_null(y)
