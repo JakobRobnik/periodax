@@ -1,6 +1,6 @@
 # Quadrature schemes for solving an integral of type
 # \int e^{-|x|^2 } f(x) d x,
-# where x is 3-dimensional (this is called e3r2 in quadpy)
+# where x is low dimensional
 
 
 import jax
@@ -8,9 +8,9 @@ import jax.numpy as jnp
 
 
 def integrate(f, x, w, d):
-    """approximates the integral I = int e^{-x^2} f(x) dx for a three dimensional x by a quadrature:
+    """Approximates the integral I = int e^{-x^2} f(x) dx for a d dimensional (typically d = 2 or 3) x by a quadrature:
         I = sum_k f(x_k) w_k
-        x: points where the f is evaluated
+        x: points where f is evaluated
         w: weights for those points
     """
     
@@ -19,8 +19,9 @@ def integrate(f, x, w, d):
 
 
 def get_scheme(d, order):
-    """reads schemes that were copied from quadpy"""
-    dirr = 'hypothesis_testing/quadpy/e'+str(d)+'r2/'
+    """Downloads good integration schemes."""
+    
+    dirr = 'hypothesis_testing/quad_schemes/d'+str(d)+'/'
     x = jnp.load(dirr + 'points'+str(order)+'.npy').T
     w = jnp.load(dirr + 'weights'+str(order)+'.npy')
     

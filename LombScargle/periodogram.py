@@ -37,11 +37,20 @@ def lomb_scargle(t, freq):
 def floating_mean_lomb_scargle(t, freq):
     """templates for the floating mean Lomb-Scargle periodogram"""
     return jnp.array([jnp.ones(t.shape), jnp.sin(2 * jnp.pi * freq * t), jnp.cos(2 * jnp.pi * freq * t)])
+
+
+def remove_mean(uncentered_data, weight):
+    """remove the data mean"""
+    ones = jnp.ones(uncentered_data.shape)
+    weighted_ones = weight(ones)
+    avg = jnp.dot(uncentered_data, weighted_ones) / jnp.dot(ones, weighted_ones)
+    return uncentered_data - avg
     
-    
-def compute2(time, data, freq, weight):
+def compute2(time, uncentered_data, freq, weight):
     """Lomb-Scargle periodogram"""
-    
+
+    data = remove_mean(uncentered_data, weight)
+
     templates = lomb_scargle(time, freq)
     
     weighted_template0 = weight(templates[0])
@@ -57,8 +66,10 @@ def compute2(time, data, freq, weight):
     return metric_to_score(overlap, inv_metric)
     
 
-def compute3(time, data, freq, weight):
+def compute3(time, uncentered_data, freq, weight):
     """floating mean Lomb-Scargle periodogram"""
+    
+    data = remove_mean(uncentered_data, weight)
     
     templates = floating_mean_lomb_scargle(time, freq)
     
@@ -118,8 +129,9 @@ def func(time, data, floating_mean= False, sqrt_cov= None):
         return lambda freq: compute2(time, data, freq, weight_func)
 
 
-def log_prob_null(data, sqrt_cov):
+def log_prob_null(uncentered_data, sqrt_cov):
     weight_func = get_weight_func(sqrt_cov)
+    data = remove_mean(uncentered_data, weight_func)
     log_det = jnp.sum(jnp.log(jnp.square(jnp.diag(sqrt_cov))))
     return -0.5 * jnp.dot(data, weight_func(data)) -0.5 * log_det
     
