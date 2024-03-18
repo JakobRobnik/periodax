@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+from jax.scipy.optimize import minimize
 
 from hypothesis_testing import quad
 
@@ -27,7 +28,7 @@ def optimize(nlogp, init):
     """
     #opt = minimize(jax.value_and_grad(nlogp), x0 = init, method= 'Newton-CG', 
     #               jac= True, hess= jax.hessian(nlogp))
-    opt = jax.scipy.optimize.minimize(nlogp, x0 = init, method = 'BFGS')
+    opt = minimize(nlogp, x0 = init, method = 'BFGS')
     hess = jax.hessian(nlogp)(opt.x)
     return ModeInfo(opt.x, opt.fun, jnp.linalg.inv(hess))
 
@@ -64,12 +65,12 @@ def quadrature(nlogp, MAP, quad_scheme):
 
 
 
-def logB(time, data, err_data, freq, prior_freq, prior_null, floating_mean= False):
+def logB(time, data, err_data, freq, prior_freq, prior_null, floating_mean= True):
     """log Bayes factor for the sinusoidal variability in the correlated Gaussian noise (ignores the marginalization over the amplitude parameters)
         priors are -log density and are in terms of log parameters"""
     
 
-    null, alternative = psd.nlog_density(time, data, err_data, prior_freq, prior_null, floating_mean)
+    null, alternative, null_lik, alternative_lik = psd.nlog_density(time, data, err_data, prior_freq, prior_null, floating_mean)
   
     ### analyze the null model ###
     y_init = jnp.log(jnp.array([0.1, 120])) # mode of the prior distribution
@@ -87,5 +88,11 @@ def logB(time, data, err_data, freq, prior_freq, prior_null, floating_mean= Fals
     map1 = optimize(alternative, y_init)
     log_ev1 = quadrature(alternative, map1, scheme_d3)
 
+    # - log likelihood ratio
+    E = null_lik(map0.y) - alternative_lik(map1.y)
+
     ### return the log Bayes factor and the optimal parameters ###
-    return log_ev1 - log_ev0, jnp.exp(map1.y)
+    params = jnp.exp(map1.y)
+    return {'logB': log_ev1 - log_ev0, 'log_lik_ratio': E, 
+            'period': 1/params[0], 'sigma': params[1], 'tau': params[2]}
+    

@@ -51,4 +51,4 @@ def nlog_density(time, data, err, prior_freq, prior_null, floating_mean= True):
     def posterior_alternative(y):
         return prior_null(y[1:]) + prior_freq(y[0]) + likelihood_alternative(y)
     
-    return posterior_null, posterior_alternative
+    return posterior_null, posterior_alternative, likelihood_null, likelihood_alternative

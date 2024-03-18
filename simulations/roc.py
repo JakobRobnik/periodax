@@ -1,43 +1,74 @@
-
+import os
 import jax
+
+os.environ["XLA_FLAGS"] = '--xla_force_host_platform_device_count=' + str(128)
+num_cores = jax.local_device_count()
+print(num_cores, jax.lib.xla_bridge.get_backend().platform)
+
 import jax.numpy as jnp
+from jax.tree_util import tree_map
+
+
 import pandas as pd
+from simulations.util import irregular_spaced, prepare_data
+from quasars.prior import loguniform_freq, log_normal
+from LombScargle import psd
+from hypothesis_testing.bayes_factor import logB
 
-from LombScargle import periodogram
-from simulations.util import *
-from simulations.quasars import *
+
+# Here the data is signal + correlated Gaussian noise with the unknown kernel (but we have a prior)
+# We compare Bayes factor against the likelihood ratio
 
 
-num_sim = 50000
+# setup
+key = jax.random.PRNGKey(42)
+repeat = 2
 
-def sim_tp(key, sqrt_cov, amplitude):
-    key1, key2, key3 = jax.random.split(key, 3)
+time, _, mag_err, freq = prepare_data(2)
+
+prior_freq = loguniform_freq(freq)
+prior_null, generator_null = log_normal()
+
+
+def noise(key):
+    key1, key2 = jax.random.split(key)
+    hyp = jnp.exp(generator_null(key1))
+    cov = psd.covariance(time, psd.drw_kernel(*hyp), mag_err)
+    return irregular_spaced(key2, cov)
+
+def signal(key):
+    key1, key2 = jax.random.split(key)
     phase = jax.random.uniform(key1) * 2 * jnp.pi
-    freq_injected = jax.random.choice(key3, freq)
-    signal= jnp.sin(2 * jnp.pi * freq_injected * time + phase) * amplitude
-    data = irregular_spaced(key2, cov) + signal
-    score, _ = periodogram.func(time, data, floating_mean= True, sqrt_cov= sqrt_cov)(freq_injected)
-    return score
+    freq_injected = jax.random.choice(key2, freq)
+    return jnp.sin(2 * jnp.pi * freq_injected * time + phase), 1./freq_injected
 
 
-def sim_fp(key, sqrt_cov):
-    data = irregular_spaced(key, cov)
-    score, _ = jax.vmap(periodogram.func(time, data, floating_mean= True, sqrt_cov= sqrt_cov))(freq)
-    return jnp.max(score)
+def sim(key, amplitude):
+    key1, key2 = jax.random.split(key)
+    model, period_injected = signal(key2)
+    data = noise(key1) + amplitude * model
+    results= logB(time, data, mag_err, freq, prior_freq, prior_null)
+    results['period_injected'] = period_injected
+    return results
 
 
-def roc(key, sqrt_cov, name):
+def roc(key):
 
-    keys= jax.random.split(key, num_sim)
-    fp = jax.vmap(sim_fp, (0, None))(keys, sqrt_cov)
-    jnp.save('simulations/results/fp_'+name+'LS', fp)
+    keys= jax.random.split(key, repeat * num_cores).reshape(num_cores, repeat, 2)
     
-    amps = jnp.logspace(-1, 0., 30, endpoint= True)
-    tp = jax.vmap(lambda amp: jax.vmap(sim_tp, (0, None, None))(keys, sqrt_cov, amp))(amps)
-    df = pd.DataFrame(tp.T, columns= amps)
-    df.to_csv('simulations/results/tp_'+name+'LS.csv', index= False)
+    for amp in [0.1, ]:
+        
+        simm = lambda k: sim(k, amp)
+        results = jax.pmap(jax.vmap(simm))(keys)
+        results = tree_map(lambda x: x.reshape((num_cores * repeat, )), results)
+        df = pd.DataFrame.from_dict(results)
+        df.to_csv('simulations/results/amp_' + str(amp) + '.csv', index= False)
+
+        
     
+import time
+t0 = time.time()
 
-roc(key, mag_err, 'white')
-roc(key, jnp.linalg.cholesky(cov), 'corr')
+roc(key)
 
+print((t0 - time.time())/60.)

@@ -1,7 +1,26 @@
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import pandas as pd
 
+
+
+dir_data = '/pscratch/sd/j/jrobnik/quasars/'
+ids = jnp.load(dir_data + 'ids.npy')
+
+
+def prepare_data(myid):
+    
+    df = pd.read_csv(dir_data + str(ids[myid]) + '.csv')
+    time = jnp.array(df['time'])
+    mag = jnp.array(df['mag'])
+    mag_err = jnp.array(df['mag_err'])
+    T = jnp.max(time) - jnp.min(time)
+    fmin, fmax = 1./T, 1./60.
+
+    freq = jnp.logspace(jnp.log10(fmin), jnp.log10(fmax), 1000)
+    
+    return time, mag, mag_err, freq
 
 
 
