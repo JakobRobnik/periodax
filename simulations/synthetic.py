@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import itertools
+from typing import NamedTuple, Any
 from LombScargle import periodogram, psd
 from simulations.util import *
 plt.style.use('img/style.mplstyle')
@@ -14,8 +15,11 @@ plt.style.use('img/style.mplstyle')
 #
 
 
-### noise ###
-# functions taking jax random key and time array and generating the data at these times
+class Noise(NamedTuple):
+    name: str
+    generator: Any # functions taking jax random key and time array and generating the data at these times
+
+    
 def white_noise(key, time):
     return jax.random.normal(key, shape = time.shape)
 
@@ -28,18 +32,23 @@ def correlated_noise(key, time):
     return irregular_spaced(key, cov)
 
 
-noise = {'white': ('white Gaussian', white_noise), 'cauchy': ('Cauchy', cauchy_noise), 'correlated': ('Correlated Gaussian', correlated_noise)}
+noise = {'white': Noise('white Gaussian', white_noise), 
+         'cauchy': Noise('Cauchy', cauchy_noise), 
+         'correlated': Noise('correlated Gaussian', correlated_noise)}
 
 
 
-### time sampling ### 
-# functions without arguments and returning time and frequencies to be searched over
+class TimeSampling(NamedTuple):
+    name: str
+    time: jax.typing.ArrayLike
+    freq: jax.typing.ArrayLike
+
 
 def equally_spaced_times():
     size = 1000
     time = jnp.arange(size) + 0.
     freq = jnp.arange(1, size//2) / size
-    return time, freq
+    return TimeSampling('Equally spaced', time, freq)
 
 
 def equally_spaced_gaps_times():
@@ -56,7 +65,7 @@ def equally_spaced_gaps_times():
     
     time = jnp.arange(len(mask))[mask]
     freq = jnp.arange(1, len(mask)//2) / len(mask)
-    return time, freq
+    return TimeSampling('Gapped, equally spaced', time, freq)
 
 
 def quasar_times():
@@ -68,26 +77,27 @@ def quasar_times():
     fmin, fmax = 2./T, 1./60.
     freq = jnp.logspace(jnp.log10(fmin), jnp.log10(fmax), 1000)
 
-    return time, freq
+    return TimeSampling('Quasar with', time, freq)
 
 
 def random_times():
     key = jax.random.PRNGKey(101)
     time = jax.random.uniform(key, shape= (1000,))
     freq = jnp.arange(1, len(time)//2)
-    return time, freq
+    return TimeSampling('Randomly spaced', time, freq)
 
-time_sampling = {'equal': ('Equally spaced', equally_spaced_times), 'equalgaps': ('Gapped equally spaced', equally_spaced_gaps_times), 
-                 'random': ('Randomly spaced', random_times), 'quasar': ('Quasar with ', quasar_times)}
+
+time_sampling = {'equal': equally_spaced_times(), 
+                 'equalgaps': equally_spaced_gaps_times(), 
+                 'random': random_times(), 
+                 'quasar': quasar_times()}
 
 
 
 def main(time_name, noise_name):
     
-    get_time = time_sampling[time_name][1]
-    get_data = noise[noise_name][1]
-    
-    time, freq = get_time()
+    time, freq = time_sampling[time_name].time, time_sampling[time_name].freq
+    get_data = noise[noise_name].generator
     
     def sim(key, temp_func):
         data = get_data(key, time)
@@ -96,7 +106,7 @@ def main(time_name, noise_name):
     
     sims= jax.vmap(sim, (0, None))
     
-    num_sim = 10000
+    num_sim = 200000
     key_sim, key_null = jax.random.split(jax.random.PRNGKey(42))
     keys = jax.random.split(key_sim, num_sim)
     
@@ -104,7 +114,7 @@ def main(time_name, noise_name):
     score = sims(keys, periodogram.basic)
     
     # LEE3 simulations
-    lee3_temp = periodogram.randomized_period(key_null, 10000, 0.5)
+    lee3_temp = periodogram.randomized_period(key_null, 10000, 0.1)
     #lee3_temp = periodogram.drifting_freq(5)
     score_lee3 = sims(keys, lee3_temp)
     
@@ -127,21 +137,27 @@ def plot():
         plt.subplot(num_y, num_x, counter + 1)
         
         data = jnp.load('data/synthetic/' + time_name + noise_name + '.npy')
-        plt.title(time_sampling[time_name][0] + ' ' + noise[noise_name][0] + ' noise')
+        plt.title(time_sampling[time_name].name + ' ' + noise[noise_name].name + ' noise')
         
         # truth 
         p, x, xmin, xmax = cdf_with_err(data[0])
-        plt.plot(x, p, color = 'tab:red', lw = 2)
+        plt.plot(x, p, color = 'black', lw = 2)
         
         # LEE3
         p, x, xmin, xmax = cdf_with_err(data[1])
-        color = plt.cm.GnBu(0.2 + (counter + 0.5) / (num_x * num_y) * 0.6)
+        color = plt.cm.inferno(0.05 + (counter + 0.5) / (num_x * num_y) * 0.9)
         plt.plot(x, p, color = color, lw = 2)
-        plt.fill_betweenx(p, xmin, xmax, color = color, alpha= 0.2)
+        plt.fill_betweenx(p, xmin, xmax, color = color, alpha= 0.3)
         
         plt.yscale('log')
-        plt.xlabel('q(x)')
-        plt.ylabel('P(q > q(x))')
+        ylim_only(x, p, 5e-5, 1.1)
+        
+        if counter // num_x == num_y -1:
+            plt.xlabel('q(x)')
+        
+        if counter % num_x == 0:
+            plt.ylabel('P(q > q(x))')
+        
         counter += 1
     
     plt.tight_layout()
@@ -153,4 +169,4 @@ def plot():
 if __name__ == '__main__':
     
     mainn()
-    #plot()
+    plot()

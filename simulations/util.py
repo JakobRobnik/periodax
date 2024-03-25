@@ -128,3 +128,10 @@ def ROC(score_fp, score_true):
 
     return fpr, tpr
 
+
+def ylim_only(X, Y, ymin, ymax):
+    plt.ylim(ymin, ymax)
+    X_in_range = X[(ymin < Y) & (Y < ymax)]
+    xmin, xmax = jnp.min(X_in_range), jnp.max(X_in_range)
+    plt.xlim(xmin - 0.05 * (xmax - xmin), xmax)
+    
