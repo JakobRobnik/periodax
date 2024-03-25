@@ -23,7 +23,7 @@ def cauchy_noise(key, time):
     return jax.random.cauchy(key, shape = time.shape)
 
 def correlated_noise(key, time):
-    tau = (jnp.max(time) - jnp.min(time)) * 0.01
+    tau = (jnp.max(time) - jnp.min(time)) * 0.05
     cov = psd.covariance(time, psd.drw_kernel(sigma= 1., tau= tau), jnp.ones(time.shape) * 0.2)
     return irregular_spaced(key, cov)
 
@@ -52,7 +52,7 @@ def equally_spaced_gaps_times():
     
     # individual missing data
     bits = jax.random.bernoulli(jax.random.PRNGKey(0), p = 0.9, shape = mask.shape)
-    mask = mask * bits    
+    mask = mask * bits   
     
     time = jnp.arange(len(mask))[mask]
     freq = jnp.arange(1, len(mask)//2) / len(mask)
@@ -82,12 +82,6 @@ time_sampling = {'equal': ('Equally spaced', equally_spaced_times), 'equalgaps':
 
 
 
-def lee3_freq(time, freq):
-    mode_spread = 1
-    freq_drift = periodogram.drifting_freq(time, freq, mode_spread)
-    return freq_drift
-
-
 def main(time_name, noise_name):
     
     get_time = time_sampling[time_name][1]
@@ -95,20 +89,27 @@ def main(time_name, noise_name):
     
     time, freq = get_time()
     
-    def sim(key, freq):
+    def sim(key, temp_func):
         data = get_data(key, time)
-        score, _ = jax.vmap(periodogram.lomb_scargle(time, data))(freq)
+        score, _ = jax.vmap(periodogram.lomb_scargle(time, data, floating_mean= True, temp_func= temp_func))(freq)
         return jnp.max(score)
     
     sims= jax.vmap(sim, (0, None))
     
     num_sim = 10000
-    keys = jax.random.split(jax.random.PRNGKey(42), num_sim)
+    key_sim, key_null = jax.random.split(jax.random.PRNGKey(42))
+    keys = jax.random.split(key_sim, num_sim)
     
-    score = sims(keys, freq)
-    score_lee3 = sims(keys, lee3_freq(time, freq))
+    # true simulations
+    score = sims(keys, periodogram.basic)
+    
+    # LEE3 simulations
+    lee3_temp = periodogram.randomized_period(key_null, 10000, 0.5)
+    #lee3_temp = periodogram.drifting_freq(5)
+    score_lee3 = sims(keys, lee3_temp)
     
     jnp.save('data/synthetic/' + time_name + noise_name + '.npy', [score, score_lee3])
+
     
 def mainn():
     # iterate over all combinations of time sampling and noise
@@ -134,9 +135,9 @@ def plot():
         
         # LEE3
         p, x, xmin, xmax = cdf_with_err(data[1])
-        color = plt.cm.ocean((counter + 0.5) / (num_x * num_y))
+        color = plt.cm.GnBu(0.2 + (counter + 0.5) / (num_x * num_y) * 0.6)
         plt.plot(x, p, color = color, lw = 2)
-        #plt.fill_betweenx(p, xmin, xmax, color = color, alpha= 0.3)
+        plt.fill_betweenx(p, xmin, xmax, color = color, alpha= 0.2)
         
         plt.yscale('log')
         plt.xlabel('q(x)')
@@ -144,7 +145,7 @@ def plot():
         counter += 1
     
     plt.tight_layout()
-    plt.savefig('img/synthetic.png')
+    plt.savefig('img/synthetic_randomized_period.png')
     plt.close()
     
 
@@ -152,4 +153,4 @@ def plot():
 if __name__ == '__main__':
     
     mainn()
-    plot()
+    #plot()

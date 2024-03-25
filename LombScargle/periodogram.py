@@ -34,17 +34,32 @@ def basic(t, freq):
     return jnp.sin(2 * jnp.pi * freq * t), jnp.cos(2 * jnp.pi * freq * t)
 
 
+def drifting_freq(mode_spread):
+    """null template with drifting frequency"""
+    
+    def temp(time, freq):
+        tmin, tmax = jnp.min(time), jnp.max(time)
+        time_span = tmax-tmin
+        x = (time-tmin) / time_span
+        freq_drift = freq + (x - 0.5) * mode_spread / time_span
+        # frac = 0.05
+        #freq_drift = freq * jnp.power(1-frac, 1-x) * jnp.power(1+frac, x)
+        return basic(time, freq_drift)
+    
+    return temp
+
+
 def randomized_period(key, num, delta):
     
-    periods = jnp.exp(jax.random.uniform(key, (num,), minval= jnp.log(1-delta), maxval= jnp.log(1+delta)))
+    periods = jnp.exp(jax.random.uniform(key, (num,), minval= jnp.log(1.-delta), maxval= jnp.log(1.+delta)))
     _grid = jnp.cumsum(periods)
     _grid_paddled = jnp.insert(_grid, 0, 0.)
     
     def temp(t, freq):
-        grid = _grid * freq
-        grid_paddled = _grid_paddled * freq
-        which_period = jnp.searchsorted(grid, t)
-        x = (t - grid_paddled[which_period]) / periods[which_period]
+        grid = _grid
+        grid_paddled = _grid_paddled
+        which_period = jnp.searchsorted(grid, freq * t)
+        x = (freq * t - grid_paddled[which_period]) / periods[which_period]
         return jnp.sin(2 * jnp.pi * x), jnp.cos(2 * jnp.pi * x)
     
     return temp
@@ -162,16 +177,5 @@ def log_prob_null(uncentered_data, sqrt_cov):
     return -0.5 * jnp.dot(data, weight_func(data)) -0.5 * log_det
     
 
-# def _drifting_freq(t, freq, mode_spread):
-#     """null template with the drifting frequency
-#     freq: base frequency"""
-#     tmin, tmax = jnp.min(t), jnp.max(t)
-#     time_span = tmax-tmin
-#     x = (t-tmin) / time_span
-#     frac = 0.05
-#     #return freq + (x - 0.5) * mode_spread / time_span
-#     return freq * jnp.power(1-frac, 1-x) * jnp.power(1+frac, x)
-
-# drifting_freq = jax.vmap(_drifting_freq, (None, 0, None)) #vectorized over the base frequency
 
 

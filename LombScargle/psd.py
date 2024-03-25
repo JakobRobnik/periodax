@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from LombScargle import periodogram, basic
+from LombScargle import periodogram
 
 
 
@@ -15,7 +15,7 @@ def covariance(t, cov_func, errors):
 
 
 
-def nlog_density(time, data, err, prior_freq, prior_null, floating_mean= True, temp_func= basic):
+def nlog_density(time, data, err, prior_freq, prior_null, floating_mean= True, temp_func= periodogram.basic):
     """y = log z"""
     
     def likelihood_alternative(y):
