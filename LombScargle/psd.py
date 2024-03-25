@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from LombScargle import periodogram
+from LombScargle import periodogram, basic
 
 
 
@@ -15,7 +15,7 @@ def covariance(t, cov_func, errors):
 
 
 
-def nlog_density(time, data, err, prior_freq, prior_null, floating_mean= True):
+def nlog_density(time, data, err, prior_freq, prior_null, floating_mean= True, temp_func= basic):
     """y = log z"""
     
     def likelihood_alternative(y):
@@ -31,7 +31,7 @@ def nlog_density(time, data, err, prior_freq, prior_null, floating_mean= True):
         
         # likelihood ratio (at maximal amplitudes) = log p(x|freq, params) / p(x|params)
         # note that this is not the maximum log-likelihood ratio, because params are not optimized for the null
-        nlogp_ratio = 0.5* periodogram.func(time, data, floating_mean= floating_mean, sqrt_cov= sqrt_cov)(freq)[0]
+        nlogp_ratio = 0.5* periodogram.lomb_scargle(time, data, floating_mean= floating_mean, sqrt_cov= sqrt_cov, temp_func= temp_func)(freq)[0]
         
         # eliminate p(x | params)
         logp_null = periodogram.log_prob_null(data, sqrt_cov)

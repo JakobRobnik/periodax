@@ -119,13 +119,12 @@ def cdf(score, score_null, save_dir):
     
 def ROC(score_fp, score_true):
     
-    num_realizations = score_fp.shape[0]
-    score_f = jnp.sort(score_fp)
-    score_t = jnp.sort(score_true)
+    F = jnp.sort(score_fp)
+    T = jnp.sort(score_true)
+    numT, numF = T.shape[0], F.shape[0]
     
-    fpr = jnp.arange(num_realizations, 0, -1) / num_realizations
+    fpr = jnp.arange(numF, 0, -1) / numF
+    tpr = (numT - jnp.searchsorted(T, F)) / numT
 
-    tpr = (num_realizations - jnp.searchsorted(score_t, score_f)) / num_realizations
-    
     return fpr, tpr
 

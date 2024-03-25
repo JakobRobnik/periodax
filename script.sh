@@ -4,7 +4,7 @@
 #SBATCH -C cpu
 #SBATCH -q regular
 #SBATCH -J quasars
-#SBATCH -t 00:02:00
+#SBATCH -t 00:10:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
 
@@ -16,6 +16,9 @@ export OMP_PROC_BIND=spread
 
 module load python
 conda activate quasar
+# python3 -m quasars.scratch_structure start
+# srun -n 128 -c 1 python -m simulations.roc 0.0
+# python3 -m quasars.scratch_structure amp0.0
 python3 -m quasars.scratch_structure start
-srun -n 33 -c 1 python -m quasars.main
-python3 -m quasars.scratch_structure finish
+srun -n 128 -c 1 python -m simulations.roc 1.0
+python3 -m quasars.scratch_structure amp1.0

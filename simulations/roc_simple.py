@@ -27,7 +27,7 @@ def sim_tp(key, sqrt_cov, amplitude):
     signal= jnp.sin(2 * jnp.pi * freq_injected * time + phase) * amplitude
     data = irregular_spaced(key2, cov) + signal
     
-    return periodogram.func(time, data, sqrt_cov= sqrt_cov)(freq_injected)[0]
+    return periodogram.lomb_scargle(time, data, sqrt_cov= sqrt_cov)(freq_injected)[0]
 
 
 def sim_fp(key, sqrt_cov):

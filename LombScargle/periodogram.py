@@ -29,15 +29,26 @@ def inverse3(A):
                       [sub02, -sub12, sub22]]) / det
 
 
-def lomb_scargle(t, freq):
+def basic(t, freq):
     """templates for the Lomb-Scargle periodogram"""
-    return jnp.array([jnp.sin(2 * jnp.pi * freq * t), jnp.cos(2 * jnp.pi * freq * t)])
+    return jnp.sin(2 * jnp.pi * freq * t), jnp.cos(2 * jnp.pi * freq * t)
 
 
-def floating_mean_lomb_scargle(t, freq):
-    """templates for the floating mean Lomb-Scargle periodogram"""
-    return jnp.array([jnp.ones(t.shape), jnp.sin(2 * jnp.pi * freq * t), jnp.cos(2 * jnp.pi * freq * t)])
-
+def randomized_period(key, num, delta):
+    
+    periods = jnp.exp(jax.random.uniform(key, (num,), minval= jnp.log(1-delta), maxval= jnp.log(1+delta)))
+    _grid = jnp.cumsum(periods)
+    _grid_paddled = jnp.insert(_grid, 0, 0.)
+    
+    def temp(t, freq):
+        grid = _grid * freq
+        grid_paddled = _grid_paddled * freq
+        which_period = jnp.searchsorted(grid, t)
+        x = (t - grid_paddled[which_period]) / periods[which_period]
+        return jnp.sin(2 * jnp.pi * x), jnp.cos(2 * jnp.pi * x)
+    
+    return temp
+    
 
 def remove_mean(uncentered_data, weight):
     """remove the data mean"""
@@ -46,50 +57,51 @@ def remove_mean(uncentered_data, weight):
     avg = jnp.dot(uncentered_data, weighted_ones) / jnp.dot(ones, weighted_ones)
     return uncentered_data - avg
     
-def compute2(time, uncentered_data, freq, weight):
+def compute2(time, uncentered_data, freq, weight, temp_func):
     """Lomb-Scargle periodogram"""
 
     data = remove_mean(uncentered_data, weight)
 
-    templates = lomb_scargle(time, freq)
-    
-    weighted_template0 = weight(templates[0])
-    weighted_template1 = weight(templates[1])
-    g00 = jnp.dot(templates[0], weighted_template0)
-    g01 = jnp.dot(templates[0], weighted_template1)
-    g11 = jnp.dot(templates[1], weighted_template1)
+    temp0, temp1 = temp_func(time, freq)
+
+    wtemp0 = weight(temp0)
+    wtemp1 = weight(temp1)
+    g00 = jnp.dot(temp0, wtemp0)
+    g01 = jnp.dot(temp0, wtemp1)
+    g11 = jnp.dot(temp1, wtemp1)
     metric = jnp.array([[g00, g01], [g01, g11]])
     inv_metric = inverse2(metric)
     
-    overlap = jnp.array([jnp.dot(data, weighted_template0), jnp.dot(data, weighted_template1)])
+    overlap = jnp.array([jnp.dot(data, wtemp0), jnp.dot(data, wtemp1)])
     
     return metric_to_score(overlap, inv_metric)
     
 
-def compute3(time, uncentered_data, freq, weight):
+def compute3(time, uncentered_data, freq, weight, temp_func):
     """floating mean Lomb-Scargle periodogram"""
     
     data = remove_mean(uncentered_data, weight)
     
-    templates = floating_mean_lomb_scargle(time, freq)
+    temp0 = jnp.ones(time.shape)
+    temp1, temp2 = temp_func(time, freq)
     
-    weighted_template0 = weight(templates[0])
-    weighted_template1 = weight(templates[1])
-    weighted_template2 = weight(templates[2])
+    wtemp0 = weight(temp0)
+    wtemp1 = weight(temp1)
+    wtemp2 = weight(temp2)
     
-    g00 = jnp.dot(templates[0], weighted_template0)
-    g11 = jnp.dot(templates[1], weighted_template1)
-    g22 = jnp.dot(templates[2], weighted_template2)
-    g01 = jnp.dot(templates[0], weighted_template1)
-    g02 = jnp.dot(templates[0], weighted_template2)
-    g12 = jnp.dot(templates[1], weighted_template2)
+    g00 = jnp.dot(temp0, wtemp0)
+    g11 = jnp.dot(temp1, wtemp1)
+    g22 = jnp.dot(temp2, wtemp2)
+    g01 = jnp.dot(temp0, wtemp1)
+    g02 = jnp.dot(temp0, wtemp2)
+    g12 = jnp.dot(temp1, wtemp2)
     
     metric = jnp.array([[g00, g01, g02], 
                         [g01, g11, g12],
                         [g02, g12, g22]])
     inv_metric = inverse3(metric)
     
-    overlap = jnp.array([jnp.dot(data, weighted_template0), jnp.dot(data, weighted_template1), jnp.dot(data, weighted_template2)])
+    overlap = jnp.array([jnp.dot(data, wtemp0), jnp.dot(data, wtemp1), jnp.dot(data, wtemp2)])
     
     return metric_to_score(overlap, inv_metric)
 
@@ -112,7 +124,13 @@ def get_weight_func(sqrt_cov):
         return lambda x: jax.scipy.linalg.cho_solve((sqrt_cov, True), x)
     
     
-def func(time, data, floating_mean= False, sqrt_cov= None):
+def zero_for_zero_freq(freq, output):
+    return output
+    # nonzero = jnp.abs(freq) > 1e-13
+    # return jax.tree_util.tree_map(lambda _output: nonzero* jnp.nan_to_num(_output), output)
+    
+
+def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= basic):
     """sqrt_cov is the square root of a noise covariance matrix. It can be: 
             None: periodogram will assume equal error, non-correlated noise
             1d array: non-equal error, non-correlated noise. In this case sqrt_cov[i] is the error of data[i]
@@ -123,10 +141,18 @@ def func(time, data, floating_mean= False, sqrt_cov= None):
     
     ### periodogram computation
     if floating_mean:
-        return lambda freq: compute3(time, data, freq, weight_func)
+        return lambda freq: zero_for_zero_freq(freq, compute3(time, data, freq, weight_func, temp_func))
 
     else:
-        return lambda freq: compute2(time, data, freq, weight_func)
+        return lambda freq: zero_for_zero_freq(freq, compute2(time, data, freq, weight_func, temp_func))
+
+
+def fit(time, freq, amp, temp_func):
+    temp0, temp1 = temp_func(time, freq)
+    model = amp[-2] * temp0 + amp[-1] * temp1
+    model += (amp.size == 3) * amp[0] # in the case of floating mean periodogram
+    return model    
+        
 
 
 def log_prob_null(uncentered_data, sqrt_cov):
@@ -136,14 +162,16 @@ def log_prob_null(uncentered_data, sqrt_cov):
     return -0.5 * jnp.dot(data, weight_func(data)) -0.5 * log_det
     
 
-def _drifting_freq(t, freq, mode_spread):
-    """null template with the drifting frequency
-    freq: base frequency"""
-    tmin, tmax = jnp.min(t), jnp.max(t)
-    time_span = tmax-tmin
-    return freq + (((t-tmin) / time_span) - 0.5) * mode_spread / time_span
+# def _drifting_freq(t, freq, mode_spread):
+#     """null template with the drifting frequency
+#     freq: base frequency"""
+#     tmin, tmax = jnp.min(t), jnp.max(t)
+#     time_span = tmax-tmin
+#     x = (t-tmin) / time_span
+#     frac = 0.05
+#     #return freq + (x - 0.5) * mode_spread / time_span
+#     return freq * jnp.power(1-frac, 1-x) * jnp.power(1+frac, x)
 
-
-drifting_freq = jax.vmap(_drifting_freq, (None, 0, None)) #vectorized over the base frequency
+# drifting_freq = jax.vmap(_drifting_freq, (None, 0, None)) #vectorized over the base frequency
 
 

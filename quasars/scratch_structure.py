@@ -23,14 +23,13 @@ def clean():
     os.mkdir(scratch + 'error_log/')
     
     
-def finish():
-    #error_log()
-    join(scratch + 'candidates/')
+def finish(name):
+    join(scratch + 'candidates/', name)
+    error_log()
     
     
-    
-def join(folder):
-    by = 'score'
+def join(folder, name):
+    by = 'logB'
     ascending = False
 
     DF = []
@@ -44,7 +43,7 @@ def join(folder):
         
     DF = pd.concat(DF)   
     DF = DF.sort_values(by=by, ascending=ascending)
-    DF.to_csv(dir_results + 'data.csv', index=False)
+    DF.to_csv(dir_results + name + '.csv', index=False)
 
 
 
@@ -117,11 +116,10 @@ def simplify_error_log(file_in, file_out):
 
 if __name__ == '__main__':
     
-    if sys.argv[1] == 'start':
+    name = sys.argv[1]
+    
+    if name == 'start':
         clean()
         
-    elif sys.argv[1] == 'finish':
-        finish()
-
     else:
-        raise ValueError('Invalid script argument for scratch_structure.py')
+        finish(name)

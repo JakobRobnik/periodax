@@ -1,29 +1,25 @@
-import os
+import os, sys
 import jax
-
-os.environ["XLA_FLAGS"] = '--xla_force_host_platform_device_count=' + str(128)
-num_cores = jax.local_device_count()
-print(num_cores, jax.lib.xla_bridge.get_backend().platform)
-
 import jax.numpy as jnp
-from jax.tree_util import tree_map
-
+jax.config.update('jax_platform_name', 'cpu') # we will use cpu here (because we can reserve so many), this line is only to avoid jax warning
+jax.config.update("jax_enable_x64", True)
 
 import pandas as pd
-from simulations.util import irregular_spaced, prepare_data
+from simulations.util import irregular_spaced
+from quasars.main import prepare_data, scratch
 from quasars.prior import loguniform_freq, log_normal
 from LombScargle import psd
 from hypothesis_testing.bayes_factor import logB
-
+from quasars import parallel
 
 # Here the data is signal + correlated Gaussian noise with the unknown kernel (but we have a prior)
 # We compare Bayes factor against the likelihood ratio
 
+amplitude = float(sys.argv[1])
 
 # setup
-key = jax.random.PRNGKey(42)
-repeat = 2
-
+cores, jobs = 128, 1000
+keys = jax.random.split(jax.random.PRNGKey(42), jobs)
 time, _, mag_err, freq = prepare_data(2)
 
 prior_freq = loguniform_freq(freq)
@@ -39,36 +35,21 @@ def noise(key):
 def signal(key):
     key1, key2 = jax.random.split(key)
     phase = jax.random.uniform(key1) * 2 * jnp.pi
-    freq_injected = jax.random.choice(key2, freq)
+    
+    freq_injected = jnp.exp(jax.random.uniform(key2, minval = jnp.log(freq[0]), maxval= jnp.log(freq[-1])))
     return jnp.sin(2 * jnp.pi * freq_injected * time + phase), 1./freq_injected
 
 
-def sim(key, amplitude):
+def sim(myid):
+    key = keys[myid]
     key1, key2 = jax.random.split(key)
     model, period_injected = signal(key2)
     data = noise(key1) + amplitude * model
     results= logB(time, data, mag_err, freq, prior_freq, prior_null)
     results['period_injected'] = period_injected
-    return results
+    df = pd.DataFrame(results, index= [0])
+    df.to_csv(scratch + 'candidates/' + str(myid) + '.csv', index= False)
 
 
-def roc(key):
-
-    keys= jax.random.split(key, repeat * num_cores).reshape(num_cores, repeat, 2)
-    
-    for amp in [0.1, ]:
-        
-        simm = lambda k: sim(k, amp)
-        results = jax.pmap(jax.vmap(simm))(keys)
-        results = tree_map(lambda x: x.reshape((num_cores * repeat, )), results)
-        df = pd.DataFrame.from_dict(results)
-        df.to_csv('simulations/results/amp_' + str(amp) + '.csv', index= False)
-
-        
-    
-import time
-t0 = time.time()
-
-roc(key)
-
-print((t0 - time.time())/60.)
+prep = parallel.error_handling(sim)
+parallel.for_loop_with_job_manager(prep, 128, jobs)

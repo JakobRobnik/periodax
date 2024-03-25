@@ -65,12 +65,12 @@ def quadrature(nlogp, MAP, quad_scheme):
 
 
 
-def logB(time, data, err_data, freq, prior_freq, prior_null, floating_mean= True):
+def logB(time, data, err_data, freq, prior_freq, prior_null, floating_mean= True, temp_func= periodogram.basic):
     """log Bayes factor for the sinusoidal variability in the correlated Gaussian noise (ignores the marginalization over the amplitude parameters)
         priors are -log density and are in terms of log parameters"""
     
 
-    null, alternative, null_lik, alternative_lik = psd.nlog_density(time, data, err_data, prior_freq, prior_null, floating_mean)
+    null, alternative, null_lik, alternative_lik = psd.nlog_density(time, data, err_data, prior_freq, prior_null, floating_mean, temp_func)
   
     ### analyze the null model ###
     y_init = jnp.log(jnp.array([0.1, 120])) # mode of the prior distribution
@@ -80,7 +80,7 @@ def logB(time, data, err_data, freq, prior_freq, prior_null, floating_mean= True
     ### analyze the alternative model ###
     # find the best candidate for the alternative
     cov = psd.covariance(time, psd.drw_kernel(*jnp.exp(map0.y)), err_data)
-    score, _ = jax.vmap(periodogram.func(time, data, floating_mean, jnp.linalg.cholesky(cov)))(freq)
+    score, _ = jax.vmap(periodogram.lomb_scargle(time, data, floating_mean, jnp.linalg.cholesky(cov), temp_func= temp_func))(freq)
     freq_best = freq[jnp.argmax(score)]
     
     # compute the evidence
