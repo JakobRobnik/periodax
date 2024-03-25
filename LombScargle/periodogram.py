@@ -50,6 +50,7 @@ def drifting_freq(mode_spread):
 
 
 def randomized_period(key, num, delta):
+    """null template with randomized period"""
     
     periods = jnp.exp(jax.random.uniform(key, (num,), minval= jnp.log(1.-delta), maxval= jnp.log(1.+delta)))
     _grid = jnp.cumsum(periods)
@@ -129,7 +130,7 @@ def metric_to_score(overlap, inv_metric):
 
 
 def get_weight_func(sqrt_cov):
-    """ noise weighting, computes Simga^-1 x """
+    """noise weighting, computes Simga^-1 x """
     
     if sqrt_cov == None:
         return lambda x: x
@@ -140,9 +141,15 @@ def get_weight_func(sqrt_cov):
     
     
 def zero_for_zero_freq(freq, output):
-    return output
-    # nonzero = jnp.abs(freq) > 1e-13
-    # return jax.tree_util.tree_map(lambda _output: nonzero* jnp.nan_to_num(_output), output)
+    """Handle the freq = 0 case. In this case null = alternative and the periodogram score = 0.
+        output is the Lomb-Scargle periodogram output which is nan if freq = 0. This function is the jax equivalent of
+        if close(freq, 0.0):
+            return 0 * output.shape
+        else:
+            return output
+    """
+    nonzero = jnp.abs(freq) > 1e-13
+    return jax.tree_util.tree_map(lambda _output: nonzero* jnp.nan_to_num(_output), output)
     
 
 def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= basic):
@@ -163,6 +170,7 @@ def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= bas
 
 
 def fit(time, freq, amp, temp_func):
+    """Best fit model(time)."""
     temp0, temp1 = temp_func(time, freq)
     model = amp[-2] * temp0 + amp[-1] * temp1
     model += (amp.size == 3) * amp[0] # in the case of floating mean periodogram

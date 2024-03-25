@@ -46,7 +46,7 @@ class TimeSampling(NamedTuple):
 
 def equally_spaced_times():
     size = 1000
-    time = jnp.arange(size) + 0.
+    time = jnp.arange(size)
     freq = jnp.arange(1, size//2) / size
     return TimeSampling('Equally spaced', time, freq)
 
@@ -110,6 +110,7 @@ def main(time_name, noise_name):
     key_sim, key_null = jax.random.split(jax.random.PRNGKey(42))
     keys = jax.random.split(key_sim, num_sim)
     
+    
     # true simulations
     score = sims(keys, periodogram.basic)
     
@@ -164,9 +165,25 @@ def plot():
     plt.savefig('img/synthetic_randomized_period.png')
     plt.close()
     
+    
+    
+def show_times():
+    import numpy as np
+    i = 0
+    plt.figure(figsize = (15, 2))
+    for times in time_sampling.values():
+        time = times.time
+        plt.plot(np.array((time - jnp.min(time)) / (jnp.max(time) - jnp.min(time))), np.ones(len(time))*i, '.')
+        i-=1
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig('img/time_sampling.png')
+    plt.close()
+    
 
 
 if __name__ == '__main__':
     
+    # show_times()
     mainn()
-    plot()
+    # plot()

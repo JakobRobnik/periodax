@@ -3,7 +3,7 @@ from LombScargle import periodogram
 
 
 
-drw_kernel = lambda sigma, tau: lambda t1, t2: jnp.square(sigma) * jnp.exp(-jnp.abs(t2-t1) / tau)
+drw_kernel = lambda sigma, tau: lambda t1, t2: jnp.square(sigma) * jnp.exp(-jnp.abs(t2-t1) / tau) # damped random walk kernel
 
 
 def covariance(t, cov_func, errors):
