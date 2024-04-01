@@ -59,7 +59,7 @@ def quadrature(nlogp, MAP, quad_scheme):
     ### do the integral ###
     val = quad.integrate(residual_integrand, *quad_scheme, d) 
     
-    val *= jnp.sqrt(2**d * detCov) # for the change of basis
+    val *= jnp.sqrt(detCov * 2**d) # for the change of basis
     log_evidence = - MAP.nlogp + jnp.log(val)
     return log_evidence
 
@@ -81,18 +81,27 @@ def logB(time, data, err_data, freq, prior_freq, prior_null, floating_mean= True
     # find the best candidate for the alternative
     cov = psd.covariance(time, psd.drw_kernel(*jnp.exp(map0.y)), err_data)
     score, _ = jax.vmap(periodogram.lomb_scargle(time, data, floating_mean, jnp.linalg.cholesky(cov), temp_func= temp_func))(freq)
+    score -= 2 * prior_freq(jnp.log(freq))
     freq_best = freq[jnp.argmax(score)]
+    
+    VISUALIZE !!!!
+    
     
     # compute the evidence
     y_init = jnp.array([jnp.log(freq_best), *map0.y])
     map1 = optimize(alternative, y_init)
     log_ev1 = quadrature(alternative, map1, scheme_d3)
 
+    # the suboptimal test statistics, just for demonstration
     # - log likelihood ratio
     E = null_lik(map0.y) - alternative_lik(map1.y)
-
+    
+    # white noise periodogram score
+    score_white, _ = jax.vmap(periodogram.lomb_scargle(time, data, floating_mean, err_data, temp_func= temp_func))(freq)
+    score_white = jnp.max(score_white)
+    
     ### return the log Bayes factor and the optimal parameters ###
     params = jnp.exp(map1.y)
-    return {'logB': log_ev1 - log_ev0, 'log_lik_ratio': E, 
+    return {'logB': log_ev1 - log_ev0, 'log_lik_ratio': E, 'white_periodogram': score_white, 
             'period': 1/params[0], 'sigma': params[1], 'tau': params[2]}
     

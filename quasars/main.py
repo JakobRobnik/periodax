@@ -27,11 +27,12 @@ def prepare_data(myid):
     mag = jnp.array(df['mag'])
     mag_err = jnp.array(df['mag_err'])
     T = jnp.max(time) - jnp.min(time)
-    fmin, fmax = 1./T, 1./60.
-
+    fmin, fmax = 2./T, 1./60.
+    # prior starts to die off at 2/T and is zero at 1.5/T
+    prior_params = (jnp.log(fmin), jnp.log(fmax), jnp.log(2. / 1.5))
     freq = jnp.logspace(jnp.log10(fmin), jnp.log10(fmax), 1000)
     
-    return time, mag, mag_err, freq
+    return time, mag, mag_err, freq, prior_params
 
     
 
@@ -50,14 +51,13 @@ def post(myid, freq, score):
 
 def process(myid):
     
-    time, mag, mag_err, freq = prepare_data(myid)
-    
-    score, best_params = jax.vmap(periodogram.func(time, mag, sqrt_cov= mag_err))(freq)
+    time, mag, mag_err, freq, prior_params = prepare_data(myid)
+
+    score, best_params = jax.vmap(periodogram.lomb_scargle(time, mag, sqrt_cov= mag_err))(freq)
     
     post(myid, freq, score)
 
 
-#process(13)
 
 # prep = parallel.error_handling(process)
 # parallel.for_loop_with_job_manager(prep, 33, 33)

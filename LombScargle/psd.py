@@ -15,7 +15,7 @@ def covariance(t, cov_func, errors):
 
 
 
-def nlog_density(time, data, err, prior_freq, prior_null, floating_mean= True, temp_func= periodogram.basic):
+def nlog_density(time, data, err, nlog_prior_freq, nlog_prior_null, floating_mean= True, temp_func= periodogram.basic):
     """y = log z"""
     
     def likelihood_alternative(y):
@@ -46,9 +46,9 @@ def nlog_density(time, data, err, prior_freq, prior_null, floating_mean= True, t
     
     
     def posterior_null(y):
-        return prior_null(y) + likelihood_null(y)
+        return nlog_prior_null(y) + likelihood_null(y)
 
     def posterior_alternative(y):
-        return prior_null(y[1:]) + prior_freq(y[0]) + likelihood_alternative(y)
+        return nlog_prior_null(y[1:]) + nlog_prior_freq(y[0]) + likelihood_alternative(y)
     
     return posterior_null, posterior_alternative, likelihood_null, likelihood_alternative

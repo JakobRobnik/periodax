@@ -1,11 +1,19 @@
 import jax
 import jax.numpy as jnp
+import os
+cpus = 128 #specific to nersc
+os.environ["XLA_FLAGS"] = '--xla_force_host_platform_device_count=' + str(cpus)
+
 import matplotlib.pyplot as plt
 import itertools
 from typing import NamedTuple, Any
 from LombScargle import periodogram, psd
 from simulations.util import *
 plt.style.use('img/style.mplstyle')
+
+
+
+
 
 # Goals: testing LEE3 (single effective simulation out of every dataset) on different:
 #   - time samplings: equally-spaced, equally-spaced with masks, random, quasar times
@@ -52,6 +60,8 @@ def equally_spaced_times():
 
 
 def equally_spaced_gaps_times():
+    """time series of size 382 (in the range [0, 578])"""
+    
     # large gaps
     mask = jnp.concatenate((jnp.ones(50, dtype = bool), jnp.zeros(29, dtype = bool), 
                             jnp.ones(72, dtype = bool), jnp.zeros(100, dtype = bool), 
@@ -100,24 +110,29 @@ def main(time_name, noise_name):
     get_data = noise[noise_name].generator
     
     def sim(key, temp_func):
-        data = get_data(key, time)
-        score, _ = jax.vmap(periodogram.lomb_scargle(time, data, floating_mean= True, temp_func= temp_func))(freq)
+        key_data, key_template = jax.random.split(key)
+        data = get_data(key_data, time)
+        temp = temp_func(key_template)
+        score, _ = jax.vmap(periodogram.lomb_scargle(time, data, floating_mean= True, temp_func= temp))(freq)
         return jnp.max(score)
     
-    sims= jax.vmap(sim, (0, None))
+    num_sim = 2**14
+    key = jax.random.PRNGKey(42)
+    keys = jax.random.split(key, num_sim)
     
-    num_sim = 200000
-    key_sim, key_null = jax.random.split(jax.random.PRNGKey(42))
-    keys = jax.random.split(key_sim, num_sim)
+    # templates 
+    basic = lambda rng_key: periodogram.basic
+    rand_temp = lambda rng_key: periodogram.randomized_period(rng_key, 1000, 0.1)
+    #drift = lambda rng_key: periodogram.drifting_freq(5)
     
-    
+    sims= lambda keys, temp_func: jax.pmap(jax.vmap(lambda k: sim(k, temp_func)))(keys.reshape(cpus, num_sim//cpus, 2)).reshape(num_sim) # for cpu
+    #sims = jax.vmap(sim, (0, None)) # for gpu
+                   
     # true simulations
-    score = sims(keys, periodogram.basic)
-    
+    score = sims(keys, basic)
+
     # LEE3 simulations
-    lee3_temp = periodogram.randomized_period(key_null, 10000, 0.1)
-    #lee3_temp = periodogram.drifting_freq(5)
-    score_lee3 = sims(keys, lee3_temp)
+    score_lee3 = sims(keys, rand_temp)
     
     jnp.save('data/synthetic/' + time_name + noise_name + '.npy', [score, score_lee3])
 
@@ -127,7 +142,7 @@ def mainn():
     for name in itertools.product(time_sampling.keys(), noise.keys()):
        print(*name)
        main(*name)
-
+       
 
 def plot():
     
@@ -183,7 +198,6 @@ def show_times():
 
 
 if __name__ == '__main__':
-    
     # show_times()
     mainn()
-    # plot()
+    plot()
