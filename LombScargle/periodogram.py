@@ -170,7 +170,13 @@ def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= bas
 
 
 def fit(time, freq, amp, temp_func):
-    """Best fit model(time)."""
+    """Best fit model.
+       Args:
+            freq: frequency of the signal
+            amp: best fit amplitudes at this frequency
+       Returns:
+            time series of shape time.shape
+    """
     temp0, temp1 = temp_func(time, freq)
     model = amp[-2] * temp0 + amp[-1] * temp1
     model += (amp.size == 3) * amp[0] # in the case of floating mean periodogram
@@ -178,10 +184,12 @@ def fit(time, freq, amp, temp_func):
         
 
 
-def log_prob_null(uncentered_data, sqrt_cov):
+def loglik_null(uncentered_data, sqrt_cov):
+    """log likelihood under the null hypothesis"""
+    
     weight_func = get_weight_func(sqrt_cov)
     data = remove_mean(uncentered_data, weight_func)
-    log_det = jnp.sum(jnp.log(jnp.square(jnp.diag(sqrt_cov))))
+    log_det = jnp.sum(jnp.log(2 * jnp.pi * jnp.square(jnp.diag(sqrt_cov))))
     return -0.5 * jnp.dot(data, weight_func(data)) -0.5 * log_det
     
 

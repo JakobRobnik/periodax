@@ -28,9 +28,9 @@ def prepare_data(myid):
     mag_err = jnp.array(df['mag_err'])
     T = jnp.max(time) - jnp.min(time)
     fmin, fmax = 2./T, 1./60.
-    # prior starts to die off at 2/T and is zero at 1.5/T
-    prior_params = (jnp.log(fmin), jnp.log(fmax), jnp.log(2. / 1.5))
-    freq = jnp.logspace(jnp.log10(fmin), jnp.log10(fmax), 1000)
+    factor = 2./1.5 # prior starts to die off at 2/T and is zero at 1.5/T
+    prior_params = (jnp.log(fmin), jnp.log(fmax), jnp.log(factor))
+    freq = jnp.logspace(jnp.log10(fmin/factor), jnp.log10(fmax*factor), 1000)
     
     return time, mag, mag_err, freq, prior_params
 

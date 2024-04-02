@@ -138,9 +138,9 @@ def for_loop_with_job_manager(prep, num_threads, total_jobs, begin = 0):
             if i == -1: #if recieved a termination message, stop working
                 break
             else: #do a job
-                print('Started: '+str(i))
+                #print('Started: '+str(i))
                 f(i, extra_args)
-                print('Finished: '+str(i))
+                #print('Finished: '+str(i))
                 
             comm.send(rank, dest = 0) #request a new job
 

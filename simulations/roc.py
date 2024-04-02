@@ -18,12 +18,12 @@ from quasars import parallel
 amplitude = float(sys.argv[1])
 
 # setup
-cores, jobs = 128, 1000
+cores, jobs = 128, 2000
 keys = jax.random.split(jax.random.PRNGKey(42), jobs)
 time, _, mag_err, freq, prior_params = prepare_data(2)
 
-prior_logfreq, generator_logfreq = prior.uniform_with_smooth_edge(*prior_params)
-prior_null, generator_null = prior.normal()
+nlogpr_logfreq, generator_logfreq = prior.uniform_with_smooth_edge(*prior_params)
+nlogpr_null, generator_null = prior.normal()
 
 
 def noise(key):
@@ -45,23 +45,24 @@ def sim(myid):
     key1, key2 = jax.random.split(key)
     model, period_injected = signal(key2)
     data = noise(key1) + amplitude * model
-    results= logB(time, data, mag_err, freq, prior_logfreq, prior_null)
+    results= logB(time, data, mag_err, freq, nlogpr_logfreq, nlogpr_null)
     results['period_injected'] = period_injected
     df = pd.DataFrame(results, index= [0])
     df.to_csv(scratch + 'candidates/' + str(myid) + '.csv', index= False)
 
 
-def tst_sim(myid):
+# def tst_sim(myid):
     
-    from hypothesis_testing import pocomc
+#     from hypothesis_testing import pocomc
     
-    key = keys[myid]
-    key1, key2 = jax.random.split(key)
-    model, period_injected = signal(key2)
-    data = noise(key1) + amplitude * model
+#     key = keys[myid]
+#     key1, key2 = jax.random.split(key)
+#     model, period_injected = signal(key2)
+#     data = noise(key1) + amplitude * model
     
-    pocomc.logB(time, data, mag_err, freq, prior_freq, prior_null)
+#     pocomc.logB(time, data, mag_err, freq, prior_freq, prior_null)
 
 
-prep = parallel.error_handling(sim)
-parallel.for_loop_with_job_manager(prep, 128, jobs)
+sim(0)
+# prep = parallel.error_handling(sim)
+# parallel.for_loop_with_job_manager(prep, 128, jobs)
