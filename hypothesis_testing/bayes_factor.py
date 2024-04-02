@@ -34,19 +34,17 @@ def optimize(nlogp, init):
 
 
 
-def quadrature(nlogp, MAP, quad_scheme, observables= False):
+def quadrature(nlogp, MAP, quad_scheme):
     """ 3d Gaussian quadrature integration for the Bayesian evidence. We want to evaluate 
             Z = \int p(z | data) dz = \int e^{-nlogp(z | data)} dz
         The Gaussian quadrature is based on the Laplace approximation of the Hessian around MAP.
-        Optionally, expectation values of some observables are also computed.
+
         Args:
             nlogp: a function, z is an array with 2 or 3 elements.
             MAP: MAPInfo object
-            observables: a list of functions. Each function takes y and returns a scalar.
     
        Returns: 
             log Z (ignoring the amplitude parameters)
-            [E[f] for f in observables]
     """
     
     d = len(MAP.y)
@@ -60,28 +58,14 @@ def quadrature(nlogp, MAP, quad_scheme, observables= False):
         z = jnp.dot(M, x) + MAP.y
         return jnp.exp(-nlogp(z) + MAP.nlogp + jnp.sum(jnp.square(x))) # residual integrand in this basis
     
-    def expectation(observable, normalization):
-        vals= jax.vmap(lambda x: residual_integrand(x) * observable(jnp.dot(M, x) + MAP.y))(points)
-        return quad.integrate(vals, weights, d) / normalization
-
     ### do the integral ###
     points, weights = quad_scheme
     vals = jax.vmap(residual_integrand)(points)
-    _val = quad.integrate(vals, weights, d)
-    val = _val * jnp.sqrt(detCov * 2**d) # for the change of basis
+    val = quad.integrate(vals, weights, d)
+    val *= jnp.sqrt(detCov * 2**d) # for the change of basis
     log_evidence = - MAP.nlogp + jnp.log(val)
     
-    if not observables:
-        return log_evidence
-    else:
-        observable = lambda y: jnp.exp(-y[0])
-        Ef = expectation(observable, _val)
-        print(Ef)
-        print(observable(MAP.y))
-        squared_centered_observable = lambda y: jnp.square(observable(y) - Ef)
-        Varf = expectation(squared_centered_observable, _val)
-
-        return log_evidence, jnp.sqrt(Varf)
+    return log_evidence
     
 
 
@@ -107,23 +91,8 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     # compute the evidence and the uncertainty in parameters
     y_init = jnp.array([jnp.log(freq_best), *map0.y])
     map1 = optimize(nlogpost1, y_init)
-    log_ev1, err_period = quadrature(nlogpost1, map1, scheme_d3, observables= True)
-    
-    import matplotlib.pyplot as plt
-    period_best = jnp.exp(-map1.y[0])
-    print(err_period)
-    err_period = jnp.sqrt(map1.cov[0, 0]) / freq_best
-    print(err_period)
-    t = jnp.linspace(-1, 1, 30) * 3 * err_period + period_best
-    
-    nlogpost1_cross = lambda y0: nlogpost1(jnp.array([y0, *map1.y[1:]]))
-    score = jax.vmap(nlogpost1_cross)(-jnp.log(t))
-    plt.plot(t, score, color = 'tab:red')
-    plt.plot(t, jnp.min(score) + 0.5 * jnp.square((t - period_best) / err_period), color= 'black')
-    plt.xlim(180, 200)
-    plt.savefig('neki.png')
-    plt.close()
-    exit()
+    log_ev1 = quadrature(nlogpost1, map1, scheme_d3)
+
     
     # the suboptimal test statistics, just for demonstration
     # - log likelihood ratio
@@ -136,5 +105,5 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     ### return the log Bayes factor and the optimal parameters ###
     params = jnp.exp(map1.y)
     return {'logB': log_ev1 - log_ev0, 'log_lik_ratio': E, 'white_periodogram': score_white,
-            'period': 1/params[0], 'err_period': err_period, 'sigma': params[1], 'tau': params[2]}
+            'period': 1/params[0], 'sigma': params[1], 'tau': params[2]}
 

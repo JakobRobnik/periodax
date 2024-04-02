@@ -8,7 +8,7 @@ import pandas as pd
 from simulations.util import irregular_spaced
 from quasars.main import prepare_data, scratch
 from quasars import prior
-from LombScargle import psd
+from LombScargle import psd, periodogram
 from hypothesis_testing.bayes_factor import logB
 from quasars import parallel
 
@@ -17,8 +17,9 @@ from quasars import parallel
 
 amplitude = float(sys.argv[1])
 
+
 # setup
-cores, jobs = 128, 2000
+cores, jobs = 128, 5000
 keys = jax.random.split(jax.random.PRNGKey(42), jobs)
 time, _, mag_err, freq, prior_params = prepare_data(2)
 
@@ -40,29 +41,22 @@ def signal(key):
     return jnp.sin(2 * jnp.pi * freq_injected * time + phase), 1./freq_injected
 
 
-def sim(myid):
-    key = keys[myid]
-    key1, key2 = jax.random.split(key)
+def sim(simulation_id):
+    key = keys[simulation_id]
+    key1, key2, key3 = jax.random.split(key, 3)
     model, period_injected = signal(key2)
     data = noise(key1) + amplitude * model
-    results= logB(time, data, mag_err, freq, nlogpr_logfreq, nlogpr_null)
-    results['period_injected'] = period_injected
-    df = pd.DataFrame(results, index= [0])
-    df.to_csv(scratch + 'candidates/' + str(myid) + '.csv', index= False)
-
-
-# def tst_sim(myid):
     
-#     from hypothesis_testing import pocomc
-    
-#     key = keys[myid]
-#     key1, key2 = jax.random.split(key)
-#     model, period_injected = signal(key2)
-#     data = noise(key1) + amplitude * model
-    
-#     pocomc.logB(time, data, mag_err, freq, prior_freq, prior_null)
+    templates = {'basic': periodogram.basic, 
+                 'randomized': periodogram.randomized_period(key3, 1000, 0.1)}
+
+    for temp in templates.keys():
+        results= logB(time, data, mag_err, freq, nlogpr_logfreq, nlogpr_null, temp_func= templates[temp])
+        results['period_injected'] = period_injected
+        df = pd.DataFrame(results, index= [0])
+        df.to_csv(scratch + 'candidates/' + temp + '/' + str(simulation_id) + '.csv', index= False)
 
 
-sim(0)
-# prep = parallel.error_handling(sim)
-# parallel.for_loop_with_job_manager(prep, 128, jobs)
+
+prep = parallel.error_handling(sim)
+parallel.for_loop_with_job_manager(prep, 128, jobs)

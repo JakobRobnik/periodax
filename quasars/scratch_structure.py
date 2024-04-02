@@ -18,13 +18,15 @@ def clean():
     """empty scratch and make the structure again"""
     
     shutil.rmtree(scratch)
-    os.mkdir(scratch)
-    os.mkdir(scratch + 'candidates/')
-    os.mkdir(scratch + 'error_log/')
+    for folder in ['', 'candidates/', 'candidates/basic/', 'candidates/randomized/', 'error_log/']:
+        os.mkdir(scratch + folder)
+    
     
     
 def finish(name):
-    join(scratch + 'candidates/', name)
+    for temp in ['basic', 'randomized']:
+        out = '_randomized' if (temp == 'randomized') else ''
+        join(scratch + 'candidates/'+temp+'/', name + out)
     error_log()
     
     
