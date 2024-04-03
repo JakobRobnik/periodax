@@ -18,9 +18,11 @@ module load python
 conda activate quasar
 
 python3 -m quasars.scratch_structure start
-srun -n 128 -c 1 python -m simulations.roc 0.0
+srun -n 128 -c 1 python -m simulations.roc 0.0 basic
+srun -n 128 -c 1 python -m simulations.roc 0.0 randomized
 python3 -m quasars.scratch_structure amp0.0
 
 python3 -m quasars.scratch_structure start
-srun -n 128 -c 1 python -m simulations.roc 0.2
+srun -n 128 -c 1 python -m simulations.roc 0.2 basic
+#srun -n 128 -c 1 python -m simulations.roc 0.2 randomized
 python3 -m quasars.scratch_structure amp0.2

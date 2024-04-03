@@ -24,10 +24,11 @@ def clean():
     
     
 def finish(name):
+    error_log()
+    
     for temp in ['basic', 'randomized']:
         out = '_randomized' if (temp == 'randomized') else ''
         join(scratch + 'candidates/'+temp+'/', name + out)
-    error_log()
     
     
 def join(folder, name):
@@ -42,7 +43,8 @@ def join(folder, name):
 
     if len(DF) == 0:  # there may be no files in the directory
         print('scratch is empty.')
-        
+        return
+
     DF = pd.concat(DF)   
     DF = DF.sort_values(by=by, ascending=ascending)
     DF.to_csv(dir_results + name + '.csv', index=False)
