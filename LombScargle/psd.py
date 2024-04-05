@@ -51,4 +51,16 @@ def nlog_density(time, data, err, nlogpr_logfreq, nlogpr0, floating_mean= True, 
     def nlogpost1(y):
         return nlogpr0(y[1:]) + nlogpr_logfreq(y[0]) + nloglik1(y)
     
-    return nlogpost0, nlogpost1, nloglik0, nloglik1
+    def get_amp(y):
+        
+        freq, sigma, tau = jnp.exp(y)
+        
+        # covariance matrix
+        cov = covariance(time, drw_kernel(sigma, tau), err)
+        sqrt_cov = jnp.linalg.cholesky(cov)
+        
+        return periodogram.lomb_scargle(time, data, floating_mean= floating_mean, sqrt_cov= sqrt_cov, temp_func= temp_func)(freq)[1]
+        
+        
+        
+    return nlogpost0, nlogpost1, nloglik0, nloglik1, get_amp

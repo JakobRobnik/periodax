@@ -4,7 +4,7 @@ import pandas as pd
 
 from LombScargle import periodogram, psd
 from simulations.util import *
-from quasars.main import prepare_data
+from quasars.prep import prepare_data
 
 # Here the data is signal + correlated Gaussian noise with the known kernel
 # We compare correlated Lomb-Scargle against white Lomb-Scargle

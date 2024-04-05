@@ -74,7 +74,7 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
         priors are -log density and are in terms of log parameters"""
     
 
-    nlogpost0, nlogpost1, nloglik0, nloglik1 = psd.nlog_density(time, data, err_data, nlogpr_logfreq, nlogpr_null, floating_mean, temp_func)
+    nlogpost0, nlogpost1, nloglik0, nloglik1, get_amp = psd.nlog_density(time, data, err_data, nlogpr_logfreq, nlogpr_null, floating_mean, temp_func)
   
     ### analyze the null model ###
     y_init = jnp.log(jnp.array([0.1, 120])) # mode of the prior distribution
@@ -104,6 +104,9 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     
     ### return the log Bayes factor and the optimal parameters ###
     params = jnp.exp(map1.y)
+    amp = get_amp(map1.y)
+    
     return {'logB': log_ev1 - log_ev0, 'log_lik_ratio': E, 'white_periodogram': score_white,
-            'period': 1/params[0], 'sigma': params[1], 'tau': params[2]}
+            'period': 1/params[0], 'sigma': params[1], 'tau': params[2],
+            'A_const': amp[0], 'A_sin': amp[1], 'A_cos': amp[2]}
 
