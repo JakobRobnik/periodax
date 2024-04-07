@@ -105,8 +105,11 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     ### return the log Bayes factor and the optimal parameters ###
     params = jnp.exp(map1.y)
     amp = get_amp(map1.y)
+    period = 1/params[0]
+    T = jnp.max(time) - jnp.min(time)
     
     return {'logB': log_ev1 - log_ev0, 'log_lik_ratio': E, 'white_periodogram': score_white,
-            'period': 1/params[0], 'sigma': params[1], 'tau': params[2],
+            'cycles': T/period,
+            'period': period, 'sigma': params[1], 'tau': params[2],
             'A_const': amp[0], 'A_sin': amp[1], 'A_cos': amp[2]}
 

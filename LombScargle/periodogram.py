@@ -71,12 +71,13 @@ def remove_mean(uncentered_data, weight):
     ones = jnp.ones(uncentered_data.shape)
     weighted_ones = weight(ones)
     avg = jnp.dot(uncentered_data, weighted_ones) / jnp.dot(ones, weighted_ones)
-    return uncentered_data - avg
+    return uncentered_data - avg, avg
+
     
 def compute2(time, uncentered_data, freq, weight, temp_func):
     """Lomb-Scargle periodogram"""
 
-    data = remove_mean(uncentered_data, weight)
+    data, amp = remove_mean(uncentered_data, weight)
 
     temp0, temp1 = temp_func(time, freq)
 
@@ -90,13 +91,15 @@ def compute2(time, uncentered_data, freq, weight, temp_func):
     
     overlap = jnp.array([jnp.dot(data, wtemp0), jnp.dot(data, wtemp1)])
     
-    return metric_to_score(overlap, inv_metric)
+    score, opt_params = metric_to_score(overlap, inv_metric, amp)
     
+    return score, jnp.array([amp, *opt_params]) # we add the average to the optimal parameters
+
 
 def compute3(time, uncentered_data, freq, weight, temp_func):
     """floating mean Lomb-Scargle periodogram"""
     
-    data = remove_mean(uncentered_data, weight)
+    data, amp = remove_mean(uncentered_data, weight)
     
     temp0 = jnp.ones(time.shape)
     temp1, temp2 = temp_func(time, freq)
@@ -119,7 +122,10 @@ def compute3(time, uncentered_data, freq, weight, temp_func):
     
     overlap = jnp.array([jnp.dot(data, wtemp0), jnp.dot(data, wtemp1), jnp.dot(data, wtemp2)])
     
-    return metric_to_score(overlap, inv_metric)
+    score, opt_params = metric_to_score(overlap, inv_metric)
+    shift= jnp.array([amp, 0., 0.]) # we have taken the average out, let's add it back
+    return score, opt_params + shift
+
 
     
 def metric_to_score(overlap, inv_metric):
@@ -169,7 +175,7 @@ def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= bas
         return lambda freq: zero_for_zero_freq(freq, compute2(time, data, freq, weight_func, temp_func))
 
 
-def fit(time, freq, amp, temp_func):
+def fit(time, freq, amp, temp_func= basic):
     """Best fit model.
        Args:
             freq: frequency of the signal
@@ -177,18 +183,15 @@ def fit(time, freq, amp, temp_func):
        Returns:
             time series of shape time.shape
     """
-    temp0, temp1 = temp_func(time, freq)
-    model = amp[-2] * temp0 + amp[-1] * temp1
-    model += (amp.size == 3) * amp[0] # in the case of floating mean periodogram
-    return model    
-        
+    sin, cos = temp_func(time, freq)
+    return amp[0] + amp[1]*sin + amp[2]*cos    
 
 
 def loglik_null(uncentered_data, sqrt_cov):
     """log likelihood under the null hypothesis"""
     
     weight_func = get_weight_func(sqrt_cov)
-    data = remove_mean(uncentered_data, weight_func)
+    data, _ = remove_mean(uncentered_data, weight_func)
     log_det = jnp.sum(jnp.log(2 * jnp.pi * jnp.square(jnp.diag(sqrt_cov))))
     return -0.5 * jnp.dot(data, weight_func(data)) -0.5 * log_det
     

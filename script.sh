@@ -2,9 +2,9 @@
 
 #SBATCH -N 1
 #SBATCH -C cpu
-#SBATCH -q preempt
+#SBATCH -q regular
 #SBATCH -J quasars
-#SBATCH -t 02:00:00
+#SBATCH -t 01:00:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
 
@@ -34,4 +34,4 @@ do
 done
 
 # combine the results in a single file
-python3 -m quasars.scratch_structure $mode
+python3 -m quasars.scratch_structure white

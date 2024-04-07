@@ -32,8 +32,6 @@ def finish(name):
     
     
 def join(folder, name):
-    by = 'logB'
-    ascending = False
 
     DF = []
     
@@ -45,8 +43,7 @@ def join(folder, name):
         print('scratch is empty.')
         return
 
-    DF = pd.concat(DF)   
-    DF = DF.sort_values(by=by, ascending=ascending)
+    DF = pd.concat(DF)
     DF.to_csv(dir_results + name + '.csv', index=False)
 
 
