@@ -35,3 +35,6 @@ done
 
 # combine the results in a single file
 python3 -m quasars.scratch_structure white
+
+
+#python -m quasars.run 0 0 0.0 real basic
