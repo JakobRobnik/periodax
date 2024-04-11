@@ -14,21 +14,22 @@ dir_results = 'data/'
 
 
 
-def clean():
+def clean(mode, temp):
     """empty scratch and make the structure again"""
+    base= scratch + mode + '_' + temp + '/'
+    if os.path.exists(base):
+        shutil.rmtree(base)
+    for folder in ['', 'candidates/', 'error_log/']:
+        os.mkdir(base + folder)
     
-    shutil.rmtree(scratch)
-    for folder in ['', 'candidates/', 'candidates/basic/', 'candidates/randomized/', 'error_log/']:
-        os.mkdir(scratch + folder)
     
     
+def finish(mode, temp, extra_name):
     
-def finish(name):
-    error_log()
-    
-    for temp in ['basic', 'randomized']:
-        out = '_randomized' if (temp == 'randomized') else ''
-        join(scratch + 'candidates/'+temp+'/', name + out)
+    base = scratch + mode + '_' + temp + '/'
+    error_log(base)
+    out = mode + ('_randomized' if (temp == 'randomized') else '')
+    join(base + 'candidates/', out + extra_name)
     
     
 def join(folder, name):
@@ -49,9 +50,9 @@ def join(folder, name):
 
 
 
-def error_log():
+def error_log(base):
     """Combine the error logs from individual workers in a single file"""
-    dir_base = scratch + 'error_log/'
+    dir_base = base + 'error_log/'
     log_name = dir_base + 'combined_error_log.txt'
     
     # error log
@@ -117,10 +118,17 @@ def simplify_error_log(file_in, file_out):
 
 if __name__ == '__main__':
     
-    name = sys.argv[1]
+    extra_name = sys.argv[1]
     
-    if name == 'start':
-        clean()
+    mode= sys.argv[2]
+    temp= sys.argv[3]
+    
+    
+    if extra_name == 'start':
+        clean(mode, temp)
         
+    elif extra_name == 'finish':
+        finish(mode, temp, '')
+
     else:
-        finish(name)
+        finish(mode, temp, extra_name)

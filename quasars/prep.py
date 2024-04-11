@@ -46,7 +46,8 @@ def fit_GP(x, y, yerr):
 def _outlier_removal_gp(time, data, data_err, mask):
     gp = fit_GP(time[mask], data[mask], data_err[mask])
     model, err_model = gp.predict(time.reshape(-1, 1), return_std=True)
-    mask_new = np.abs((data-model)/err_model) < 3.
+    err = np.sqrt(np.square(data_err) + np.square(err_model))
+    mask_new = np.abs((data-model)/err) < 3.
     return mask_new
 
     

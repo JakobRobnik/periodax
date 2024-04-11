@@ -4,9 +4,6 @@ import sys, shutil, os, traceback
 import numpy as np
 from time import time, sleep
 
-scratch = '/pscratch/sd/j/jrobnik/quasars_scratch/'
-
-
 
 def add_args(f, args):
     """gets f with additional arguments in the form with one argument"""    
@@ -17,13 +14,13 @@ def add_args(f, args):
 
 
 
-def error_handling(f, args= None):
+def error_handling(f, base, args= None):
     """converts f to also handle errors"""
     
     _f = add_args(f, args)
     
     def init(rank):
-        error_file = scratch + 'error_log/'+str(rank)+'.txt'
+        error_file = base + 'error_log/'+str(rank)+'.txt'
         if os.path.exists(error_file):
             os.remove(error_file)
         error_log = open(error_file, 'w')
@@ -54,8 +51,7 @@ def basic(f, args= None):
     _f = add_args(f, args)
     return lambda rank: None, _f, lambda args: None
     
-    
-    
+
 # in the cases below, each worker first calls extra_args = init(), exectue the given jobs f(k, extra_args) and wraps up by calling finish(extra_args).
 
 

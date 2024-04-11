@@ -4,7 +4,7 @@
 #SBATCH -C cpu
 #SBATCH -q regular
 #SBATCH -J quasars
-#SBATCH -t 01:00:00
+#SBATCH -t 02:30:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
 
@@ -15,14 +15,15 @@ export OMP_PROC_BIND=spread
 
 # parameters of the script
 mode='real'
-temp='basic'
+#temp='basic'
+temp='randomized'
 
 # load environment
 module load python
 conda activate quasar
 
 # prepare the folder structure
-python3 -m quasars.scratch_structure start
+python3 -m quasars.scratch_structure start $mode $temp
 
 # run the analysis (split in batches because of the weird jax error)
 for i in {0..17}
@@ -34,7 +35,7 @@ do
 done
 
 # combine the results in a single file
-python3 -m quasars.scratch_structure white
+python3 -m quasars.scratch_structure finish $mode $temp
 
 
 #python -m quasars.run 0 0 0.0 real basic
