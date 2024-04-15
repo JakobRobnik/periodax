@@ -49,14 +49,33 @@ def drifting_freq(mode_spread):
     return temp
 
 
+# def randomized_period(key, num, delta):
+#     """null template with randomized period"""
+    
+#     periods = jnp.exp(jax.random.uniform(key, (num,), minval= jnp.log(1.-delta), maxval= jnp.log(1.+delta)))
+#     _grid = jnp.cumsum(periods)
+#     _grid_paddled = jnp.insert(_grid, 0, 0.)
+    
+#     def temp(_t, freq):
+#         t = _t - jnp.min(_t)
+#         grid = _grid
+#         grid_paddled = _grid_paddled
+#         which_period = jnp.searchsorted(grid, freq * t)
+#         x = (freq * t - grid_paddled[which_period]) / periods[which_period]
+#         return jnp.sin(2 * jnp.pi * x), jnp.cos(2 * jnp.pi * x)
+    
+#     return temp
+
+
 def randomized_period(key, num, delta):
     """null template with randomized period"""
     
-    periods = jnp.exp(jax.random.uniform(key, (num,), minval= jnp.log(1.-delta), maxval= jnp.log(1.+delta)))
+    periods = jnp.exp(jax.random.normal(key, (num,)) * jnp.log(delta))
     _grid = jnp.cumsum(periods)
     _grid_paddled = jnp.insert(_grid, 0, 0.)
     
-    def temp(t, freq):
+    def temp(_t, freq):
+        t = _t - jnp.min(_t)
         grid = _grid
         grid_paddled = _grid_paddled
         which_period = jnp.searchsorted(grid, freq * t)
