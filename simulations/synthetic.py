@@ -122,7 +122,7 @@ def main(time_name, noise_name):
     
     # templates 
     basic = lambda rng_key: periodogram.basic
-    rand_temp = lambda rng_key: periodogram.randomized_period(rng_key, 1000, 0.1)
+    rand_temp = lambda rng_key: periodogram.randomized_period(rng_key, 2000, 5.)
     #drift = lambda rng_key: periodogram.drifting_freq(5)
     
     sims= lambda keys, temp_func: jax.pmap(jax.vmap(lambda k: sim(k, temp_func)))(keys.reshape(cpus, num_sim//cpus, 2)).reshape(num_sim) # for cpu
@@ -177,7 +177,7 @@ def plot():
         counter += 1
     
     plt.tight_layout()
-    plt.savefig('img/synthetic_randomized_period.png')
+    plt.savefig('img/synthetic_randomized_period_5.png')
     plt.close()
     
     

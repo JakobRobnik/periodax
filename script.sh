@@ -15,8 +15,8 @@ export OMP_PROC_BIND=spread
 
 # parameters of the script
 mode='real'
-#temp='basic'
-temp='randomized'
+temp='basic'
+#temp='randomized'
 
 # load environment
 module load python
@@ -31,7 +31,7 @@ do
    start=$((i*2000))
    finish=$((start+2000))
    echo $start
-   srun -n 128 -c 1 python -m quasars.run $start $finish 0.0 0.0 $mode $temp
+   srun -n 128 -c 1 python -m quasars.run $start $finish 0.0 $mode $temp
 done
 
 # combine the results in a single file

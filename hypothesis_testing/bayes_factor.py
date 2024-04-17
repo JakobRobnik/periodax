@@ -26,9 +26,9 @@ def optimize(nlogp, init):
        Returns:
             ModeInfo object
     """
-    #opt = minimize(jax.value_and_grad(nlogp), x0 = init, method= 'Newton-CG', 
-    #               jac= True, hess= jax.hessian(nlogp))
-    opt = minimize(nlogp, x0 = init, method = 'BFGS')
+    opt = minimize(jax.value_and_grad(nlogp), x0 = init, method= 'Newton-CG', 
+                  jac= True, hess= jax.hessian(nlogp))
+    #opt = minimize(nlogp, x0 = init, method = 'BFGS')
     hess = jax.hessian(nlogp)(opt.x)
     return ModeInfo(opt.x, opt.fun, jnp.linalg.inv(hess))
 
@@ -52,6 +52,9 @@ def quadrature(nlogp, MAP, quad_scheme):
     detCov = jnp.linalg.det(MAP.cov)
     D, Q = jnp.linalg.eigh(MAP.cov)
     
+    if jnp.any(D < 0.):
+        print('Hessian is not positive definite.')
+        
     M = jnp.sqrt(2)* jnp.dot(Q, jnp.diag(jnp.sqrt(D))) 
     
     def residual_integrand(x):
