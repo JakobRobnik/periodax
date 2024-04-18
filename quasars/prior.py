@@ -33,9 +33,7 @@ class SmoothenEdge:
         
         integrand = jnp.exp(-self.nlogp_base(x)) * (self.window(x) - 1.)
         
-        correction_integral = jnp.sum(jax.scipy.integrate.trapezoid(integrand, x))
-        #correction_integral = jnp.sum(integrand) * dx
-        print(correction_integral)
+        correction_integral = jnp.sum(integrand) * dx
         return jnp.log(1 + correction_integral)
         
 

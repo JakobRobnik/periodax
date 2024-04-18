@@ -13,10 +13,14 @@ dir_data = scratch_base + 'quasars/'
 dir_results = 'data/'
 
 
+def base_name(mode, temp, which_amp):
+    return scratch + mode + '_' + temp + '_' +str(which_amp) + '/'
+    
 
-def clean(mode, temp):
+def clean(mode, temp, which_amp):
     """empty scratch and make the structure again"""
-    base= scratch + mode + '_' + temp + '/'
+    base = base_name(mode, temp, which_amp)
+    
     if os.path.exists(base):
         shutil.rmtree(base)
     for folder in ['', 'candidates/', 'error_log/']:
@@ -24,9 +28,9 @@ def clean(mode, temp):
     
     
     
-def finish(mode, temp, extra_name):
+def finish(mode, temp, which_amp, extra_name):
     
-    base = scratch + mode + '_' + temp + '/'
+    base = base_name(mode, temp, which_amp)
     error_log(base)
     out = mode + ('_randomized' if (temp == 'randomized') else '')
     join(base + 'candidates/', out + extra_name)
@@ -122,13 +126,14 @@ if __name__ == '__main__':
     
     mode= sys.argv[2]
     temp= sys.argv[3]
-    
+    whichamp= sys.argv[4]
+
     
     if extra_name == 'start':
-        clean(mode, temp)
+        clean(mode, temp, whichamp)
         
     elif extra_name == 'finish':
-        finish(mode, temp, '')
+        finish(mode, temp, whichamp, '')
 
     else:
-        finish(mode, temp, extra_name)
+        finish(mode, temp, whichamp, extra_name)
