@@ -10,7 +10,7 @@ from sklearn.gaussian_process.kernels import Matern
 scratch_base = '/pscratch/sd/j/jrobnik/'
 scratch = scratch_base + 'quasars_scratch/'
 dir_data = scratch_base + 'quasars/'
-
+#/global/cfs/cdirs/m4031/abayer/PTF/
 
 ids = jnp.load(dir_data + 'ids.npy')
 #ids = jnp.array(pd.read_csv('quasars/known.csv')['id'], dtype= int)
@@ -85,10 +85,7 @@ def prepare_data(id, remove_outliers= True, average_within_night= True):
     
     # determine the frequency grid
     T = jnp.max(time) - jnp.min(time)
-    fmin, fmax = 2./T, 1./60.
-    factor = 2./1.5 # prior starts to die off at 2/T and is zero at 1.5/T
-    prior_params = (jnp.log(fmin), jnp.log(fmax), jnp.log(factor))
-    freq = jnp.logspace(jnp.log10(fmin/factor), jnp.log10(fmax*factor), 1000)
-    #freq = jnp.logspace(jnp.log10(1./T), jnp.log10(fmax), 1000)
-
-    return time, mag, mag_err, freq, prior_params
+    freq_bounds = jnp.array([2./T, 1./60.])
+    freq = jnp.logspace(*jnp.log10(freq_bounds), 1000)
+    
+    return time, mag, mag_err, freq, freq_bounds
