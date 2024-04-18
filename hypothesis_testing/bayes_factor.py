@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
-from jax.scipy.optimize import minimize
+from scipy.optimize import minimize
+#from jax.scipy.optimize import minimize
 
 from hypothesis_testing import quad
 

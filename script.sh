@@ -2,7 +2,7 @@
 
 #SBATCH -N 1
 #SBATCH -C cpu
-#SBATCH -q regular
+#SBATCH -q preempt
 #SBATCH -J quasars
 #SBATCH -t 02:30:00
 #SBATCH --mail-type=end,fail
@@ -14,7 +14,7 @@ export OMP_PLACES=threads
 export OMP_PROC_BIND=spread
 
 # parameters of the script
-mode='real'
+mode='sim'
 temp='basic'
 #temp='randomized'
 

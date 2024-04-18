@@ -26,12 +26,14 @@ class SmoothenEdge:
     
     def normalization_correction(self, num_integration_points = 1000):
 
-        x = jnp.array([jnp.linspace(self.a, self.a + self.h, num_integration_points),  # left edge
-                    jnp.linspace(self.b - self.h, self.b, num_integration_points)]) # right edge
-
-        integrand = jnp.exp(-self.nlogp_base(x)) * (self.window(x) - 1.)
-        correction_integral = jnp.sum(jax.scipy.integrate.trapezoid(integrand, x)) #trapezoid does both integrals, we then add them up
+        dx = self.h / num_integration_points
+        t = (jnp.arange(num_integration_points) + 0.5) * dx
+        x = jnp.array([self.a + t,  # left edge
+                    self.b - self.h + t]) # right edge
         
+        integrand = jnp.exp(-self.nlogp_base(x)) * (self.window(x) - 1.)
+        correction_integral = jnp.sum(integrand) * dx
+        print(correction_integral)
         return jnp.log(1 + correction_integral)
         
 
