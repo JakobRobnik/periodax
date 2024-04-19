@@ -26,14 +26,16 @@ def clean(mode, temp, which_amp):
     for folder in ['', 'candidates/', 'error_log/']:
         os.mkdir(base + folder)
     
+
+def out_name(mode, temp, which_amp, extra_name):
+    return mode + ('_randomized' if (temp == 'randomized') else '') + '_' + which_amp + extra_name
     
     
 def finish(mode, temp, which_amp, extra_name):
     
     base = base_name(mode, temp, which_amp)
     error_log(base)
-    out = mode + ('_randomized' if (temp == 'randomized') else '')
-    join(base + 'candidates/', out + extra_name)
+    join(base + 'candidates/', out_name(mode, temp, which_amp, extra_name))
     
     
 def join(folder, name):

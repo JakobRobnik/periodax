@@ -8,28 +8,26 @@ import jax.numpy as jnp
 
 class SmoothenEdge:
     """Smoothen the edges of the distribution to zero. 
-        base distribution stays as is in the range [a h, b/h] and zero outside [a, b].
+        base distribution stays the same for x > a h and zero for x < a
     """
         
     def __init__(self, Base, h):
 
         # everything operates in terms of y = log x
-        self.a, self.b = jnp.log(Base.a), jnp.log(Base.b)
+        self.a = jnp.log(Base.freq_min)
         self.nlogp_base, self.rvs_base = Base.nlogp, Base.rvs
         self.h = jnp.log(h) 
-        self.c = (self.b-self.a) * 0.5 # half width of the full interval
-    
+        
         # compute the correction to the normalization factor
 
-        self.log_norm = self.normalization_correction()
-
+        self.log_norm_correction = self.normalization_correction()
+        self.log_norm = self.log_norm_correction + Base.log_norm
+        
     
     def normalization_correction(self, num_integration_points = 1000):
 
         dx = self.h / num_integration_points
-        t = (jnp.arange(num_integration_points) + 0.5) * dx
-        x = jnp.array([self.a + t,  # left edge
-                    self.b - self.h + t]) # right edge
+        x = self.a + (jnp.arange(num_integration_points) + 0.5) * dx
         
         integrand = jnp.exp(-self.nlogp_base(x)) * (self.window(x) - 1.)
         
@@ -39,21 +37,20 @@ class SmoothenEdge:
 
     def window(self, x):
         """1 in the untouched region"""
-        centered_x = x - (self.a + self.c)
-        y = (jnp.abs(centered_x) - self.c + self.h) / self.h
+        y = (self.a + self.h - x) / self.h
         edge = 0.5 * ( 1 + jnp.cos(jnp.pi * y))
-        return jax.lax.select(y < 0, jnp.ones(x.shape), edge)
+        is_inside = y < 0
+        return is_inside + (1.-is_inside) * edge
 
     
     def nlog_window(self, x):
-        centered_x = x - (self.a + self.c) # x, relative to the ceneter of the interval
-        y = (jnp.abs(centered_x) - self.c + self.h) / self.h # y = 0 at the edge of the untouched region and y > 1 outside of [a, b]
+        y = (self.a + self.h - x) / self.h
         edge = 0.5 * ( 1 + jnp.cos(jnp.pi * y))
         return jax.lax.select(y < 1, -jnp.log((y >= 0) * edge + (y < 0.)), jnp.inf * jnp.ones(y.shape))
 
 
     def nlogp(self, y):
-        return self.nlog_window(y) + self.nlogp_base(y) + self.log_norm
+        return self.nlog_window(y) + self.nlogp_base(y) + self.log_norm_correction
 
     
     def rvs(self, key):
@@ -78,20 +75,20 @@ class SmoothenEdge:
 class PowerLaw:
   """p(x) \propto x^alpha within the bounds a < x < b"""
 
-  def __init__(self, alpha, a, b):
+  def __init__(self, alpha, freq_min):
     """a and b are bounds for x, but rvs and nlogp operate in terms of y = log x"""
 
-    self.logC = jnp.log((jnp.power(b, alpha + 1) - jnp.power(a, alpha + 1))/(alpha + 1))
-    self.a, self.b, self.alpha = a, b, alpha
+    self.log_norm = jnp.log( - jnp.power(freq_min, alpha + 1)/(alpha + 1))
+    self.freq_min, self.alpha = freq_min, alpha
 
   def rvs(self, key):
     """returns y = log x"""
     U = jax.random.uniform(key)
-    x= jnp.power(jnp.power(self.a, 1+self.alpha) * (1-U) + jnp.power(self.b, 1+self.alpha) * U, 1./(1+self.alpha))
+    x= self.freq_min * jnp.power(U, 1./(1+self.alpha))
     return jnp.log(x)
 
   def nlogp(self, y):
-    return -y*(self.alpha+1) + self.logC
+    return -y*(self.alpha+1) + self.log_norm
 
 
 
@@ -106,4 +103,20 @@ class Normal:
     
         self.nlogp = lambda y: jnp.sum(0.5 * jnp.square((y - mu)/sigma) + 0.5 * jnp.log(2 * jnp.pi * jnp.square(sigma)))    
         self.rvs = lambda key: rand.normal(key, shape= (2,)) * sigma + mu
+    
+
+
+def prepare(freq_min, redshift):    
+    
+    alpha= 8./3. # power law exponent for the period prior
+    PriorAlterantive = SmoothenEdge(PowerLaw(-alpha - 2., freq_min), 1.2)
+
+    PriorNull = Normal()
+    
+    ### prior odds ###
+    period_cut = 500. # arbitrary constant to make prior odds on order one (doesn't matter for the test statistic)
+    base_log_norm = jnp.log(jnp.power(period_cut, alpha + 1) / (alpha + 1.))
+    log_prior_odds = (alpha + 1.) * jnp.log(1+redshift) + PriorAlterantive.log_norm - base_log_norm
+    
+    return PriorAlterantive, PriorNull, log_prior_odds
     
