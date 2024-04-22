@@ -63,14 +63,64 @@ def outlier_removal(time, data, data_err):
     return time[mask], data[mask], data_err[mask]
     
 
+# import h5py
 
-def prepare_data(id, remove_outliers= True, average_within_night= True):
+# scratch = '/pscratch/sd/j/jrobnik/quasars/'
+
+def prepare(file, qso_id, remove_outliers= True, average_within_night= True):
+    """write data for a specific Quasar ID to a csv file"""
+
+    ### Extract the data ###
+    quasar_group = file[qso_id]
+    time = np.array(quasar_group['mjd'][:])
+    mag = np.array(quasar_group['mag'][:])
+    mag_err = np.array(quasar_group['magErr'][:])
+    
+    print(list(quasar_group.keys()))
+    
+    ### Process the data ###
+
+    # sort time 
+    perm = np.argsort(time)
+    time, mag, mag_err = time[perm], mag[perm], mag_err[perm]
+    
+    # remove outliers
+    if remove_outliers:
+        time, mag, mag_err = outlier_removal(time, mag, mag_err)
+    
+    # average within nigh
+    time, mag, mag_err = jnp.array(time), jnp.array(mag), jnp.array(mag_err)
+    if average_within_night:
+        time, mag, mag_err = within_night_averaging(time, mag, mag_err)
+        
+    df = pd.DataFrame.from_dict({'time': np.array(time), 'mag': np.array(mag), 'mag_err': np.array(mag_err)})
+    df.to_csv(scratch + qso_id + '.csv')
+
+
+def prepare_all(remove_outliers= True, average_within_night= True):
+    
+    with h5py.File('PTF_LightCurves_35k.h5', 'r') as file:
+        ids = list(file.keys())
+        #np.save(scratch + 'ids.npy', np.array(ids, dtype= int))
+        
+        for i, id in enumerate(ids):
+            if id in file:
+                prepare(file, id, remove_outliers, average_within_night)
+            else:
+                print("Quasar " + id + "not found.")
+            
+            return 
+                
+
+
+def load_data(id, remove_outliers= True, average_within_night= True):
     
     # load the data
     df = pd.read_csv(dir_data + str(id) + '.csv')
     time = np.array(df['time'])
     mag = np.array(df['mag'])
     mag_err = np.array(df['mag_err'])
+    redshift = 0.
     
     # sort the data
     perm = np.argsort(time)
@@ -88,4 +138,10 @@ def prepare_data(id, remove_outliers= True, average_within_night= True):
     freq_bounds = jnp.array([2./T, 1./60.])
     freq = jnp.logspace(*jnp.log10(freq_bounds), 1000)
     
-    return time, mag, mag_err, freq
+    return time, mag, mag_err, freq, redshift
+
+
+
+if __name__ == '__main__':
+    
+    prepare_all(remove_outliers= True, average_within_night= True)

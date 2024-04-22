@@ -16,7 +16,7 @@ export OMP_PROC_BIND=spread
 # parameters of the script
 mode='sim'
 temp='basic'
-whichamp=1
+whichamp=4
 #temp='randomized'
 
 # load environment
@@ -37,4 +37,3 @@ done
 
 # combine the results in a single file
 python3 -m quasars.scratch_structure finish $mode $temp $whichamp
-

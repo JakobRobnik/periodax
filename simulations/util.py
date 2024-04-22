@@ -2,11 +2,22 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 
 
 dir_data = '/pscratch/sd/j/jrobnik/quasars/'
 ids = jnp.load(dir_data + 'ids.npy')
+
+
+### parameters for bootstrap ###
+#sigma          1         2      3
+#percentiles = 34.1     47.7    49.8
+percentile = 34.1
+repeat = 100
+ilow = (int) (repeat * (50 - percentile) / 100)
+ihigh = (int)(repeat * (50 + percentile) / 100)
+
 
 
 def prepare_data(myid):
@@ -50,15 +61,8 @@ def maximize_over_bin(q, bin):
 
 
 def cdf_with_err(x_given, sgn = -1):
-    key = jax.random.PRNGKey(0)
-    
-    repeat = 100
 
-    #sigma          1         2      3
-    #percentiles = 34.1     47.7    49.8
-    percentile = 34.1
-    ilow = (int) (repeat * (50 - percentile) / 100)
-    ihigh = (int)(repeat * (50 + percentile) / 100)
+    key = jax.random.PRNGKey(0)
 
     x = sgn*jnp.sort(sgn*x_given)
     num_realizations = len(x)
@@ -117,16 +121,29 @@ def cdf(score, score_null, save_dir):
     plt.close()
     
     
-def ROC(score_fp, score_true):
-    
+def tpr(score_fp, score_true):
     F = jnp.sort(score_fp)
     T = jnp.sort(score_true)
-    numT, numF = T.shape[0], F.shape[0]
-    
-    fpr = jnp.arange(numF, 0, -1) / numF
-    tpr = (numT - jnp.searchsorted(T, F)) / numT
+    numT = T.shape[0]    
+    return (numT - jnp.searchsorted(T, F)) / numT
 
-    return fpr, tpr
+
+
+def ROC(score_fp, score_true):
+    
+    numF, numT = len(score_fp), len(score_true)
+    
+    key = jax.random.PRNGKey(0)
+    key1, key2 = jax.random.split(key)
+    index_F = jax.random.randint(key1, minval = 0, maxval = numF, shape = (repeat, numF))
+    index_T = jax.random.randint(key2, minval = 0, maxval = numT, shape = (repeat, numT))
+
+    fpr = jnp.arange(numF, 0, -1) / numF
+    tpr_mean = tpr(score_fp, score_true)
+    tpr_all = np.sort(jax.vmap(tpr)(score_fp[index_F], score_true[index_T]), axis = 0)
+
+    return np.array(fpr), np.array(tpr_mean), np.array(tpr_all[ilow]), np.array(tpr_all[ihigh])
+
 
 
 def ylim_only(X, Y, ymin, ymax):
