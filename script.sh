@@ -4,7 +4,7 @@
 #SBATCH -C cpu
 #SBATCH -q regular
 #SBATCH -J quasars
-#SBATCH -t 02:30:00
+#SBATCH -t 03:00:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
 
@@ -14,9 +14,9 @@ export OMP_PLACES=threads
 export OMP_PROC_BIND=spread
 
 # parameters of the script
-mode='sim'
+mode='real'
 temp='basic'
-whichamp=4
+whichamp=0
 #temp='randomized'
 
 # load environment
