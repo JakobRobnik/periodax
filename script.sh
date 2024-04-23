@@ -4,7 +4,7 @@
 #SBATCH -C cpu
 #SBATCH -q regular
 #SBATCH -J quasars
-#SBATCH -t 03:00:00
+#SBATCH -t 02:00:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
 
@@ -26,14 +26,15 @@ conda activate quasar
 # prepare the folder structure
 python3 -m quasars.scratch_structure start $mode $temp $whichamp
 
-# run the analysis (split in batches because of the weird jax error)
-for i in {0..17}
-do
-   start=$((i*2000))
-   finish=$((start+2000))
-   echo $start
-   srun -n 128 -c 1 python -m quasars.run $start $finish $mode $temp $whichamp
-done
+python3 -m quasars.runmult
+# # run the analysis (split in batches because of the weird jax error)
+# for i in {0..17}
+# do
+#    start=$((i*2000))
+#    finish=$((start+2000))
+#    echo $start
+#    srun -n 128 -c 1 python -m quasars.run $start $finish $mode $temp $whichamp
+# done
 
 # combine the results in a single file
 python3 -m quasars.scratch_structure finish $mode $temp $whichamp

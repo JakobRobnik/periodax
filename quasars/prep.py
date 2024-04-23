@@ -12,7 +12,7 @@ scratch = scratch_base + 'quasars_scratch/'
 dir_data = scratch_base + 'quasars/'
 #/global/cfs/cdirs/m4031/abayer/PTF/
 
-ids = jnp.load(dir_data + 'ids.npy')
+#ids = jnp.load(dir_data + 'ids.npy')
 #ids = jnp.array(pd.read_csv('quasars/known.csv')['id'], dtype= int)
 
 
