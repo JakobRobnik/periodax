@@ -116,7 +116,6 @@ def get_main(amplitudes, delta, ids):
     amplitude = amplitudes[amp]
         
     if temp == 0:
-        print('yes')
         temp_func = lambda key: periodogram.basic
 
     else:
@@ -164,6 +163,6 @@ if __name__ == "__main__":
     ids = np.load(scratch_structure.dir_data + 'ids.npy')
 
     mainn = get_main(amplitudes = [0.0, 0.1, 0.2, 0.3, 0.4], delta= 2., ids= ids)
-    mainn(10984)
+    mainn(25285)
     #mainn(0)
     #run_main(mainn, ids)

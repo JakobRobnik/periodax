@@ -160,7 +160,7 @@ def prepare(freq, redshift):
     
     alpha= 8./3. # power law exponent for the period prior
     #PriorAlterantive = SmoothenEdge(PowerLaw(-alpha - 2., freq[0]), 1.2)
-    PriorAlterantive = Uniform_with_smooth_edge(jnp.log(freq[0]), jnp.log(freq[-1]), 1.2)
+    PriorAlterantive = Uniform_with_smooth_edge(jnp.log(freq[0]), jnp.log(freq[-1]), 2./1.5)
     PriorNull = Normal()
     
     ### prior odds ###
