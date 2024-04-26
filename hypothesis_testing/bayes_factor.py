@@ -112,6 +112,12 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     period = 1/params[0]
     T = jnp.max(time) - jnp.min(time)
     
+    success = success1 and success0
+    if success:
+        logB = log_ev1 - log_ev0
+    else: 
+        logB = None
+    
     return {'logB': log_ev1 - log_ev0, 'log_lik_ratio': E, 'white_periodogram': score_white,
             'cycles': T/period,
             'period': period, 'sigma': params[1], 'tau': params[2],
