@@ -6,10 +6,6 @@ import numpy as np
 
 
 
-dir_data = '/pscratch/sd/j/jrobnik/quasars/'
-ids = jnp.load(dir_data + 'ids.npy')
-
-
 ### parameters for bootstrap ###
 #sigma          1         2      3
 #percentiles = 34.1     47.7    49.8
@@ -17,21 +13,6 @@ percentile = 34.1
 repeat = 100
 ilow = (int) (repeat * (50 - percentile) / 100)
 ihigh = (int)(repeat * (50 + percentile) / 100)
-
-
-
-def prepare_data(myid):
-    
-    df = pd.read_csv(dir_data + str(ids[myid]) + '.csv')
-    time = jnp.array(df['time'])
-    mag = jnp.array(df['mag'])
-    mag_err = jnp.array(df['mag_err'])
-    T = jnp.max(time) - jnp.min(time)
-    fmin, fmax = 1./T, 1./60.
-
-    freq = jnp.logspace(jnp.log10(fmin), jnp.log10(fmax), 1000)
-    
-    return time, mag, mag_err, freq
 
 
 
