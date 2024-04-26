@@ -31,7 +31,7 @@ def optimize(nlogp, init):
                   jac= True, hess= jax.hessian(nlogp))
     #opt = minimize(nlogp, x0 = init, method = 'BFGS')
     hess = jax.hessian(nlogp)(opt.x)
-    return ModeInfo(opt.x, opt.fun, jnp.linalg.inv(hess))
+    return ModeInfo(opt.x, opt.fun, jnp.linalg.inv(hess)), opt.success
 
 
 
@@ -54,7 +54,7 @@ def quadrature(nlogp, MAP, quad_scheme):
     D, Q = jnp.linalg.eigh(MAP.cov)
     
     if jnp.any(D < 0.):
-        print('Hessian is not positive definite.')
+        return 0., False
         
     M = jnp.sqrt(2)* jnp.dot(Q, jnp.diag(jnp.sqrt(D))) 
     
@@ -69,7 +69,7 @@ def quadrature(nlogp, MAP, quad_scheme):
     val *= jnp.sqrt(detCov * 2**d) # for the change of basis
     log_evidence = - MAP.nlogp + jnp.log(val)
     
-    return log_evidence
+    return log_evidence, True
     
 
 
@@ -82,8 +82,8 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
   
     ### analyze the null model ###
     y_init = jnp.log(jnp.array([0.1, 120])) # mode of the prior distribution
-    map0 = optimize(nlogpost0, y_init)
-    log_ev0 = quadrature(nlogpost0, map0, scheme_d2)
+    map0, success1 = optimize(nlogpost0, y_init)
+    log_ev0, success2 = quadrature(nlogpost0, map0, scheme_d2)
     
     ### analyze the alternative model ###
     # find the best candidate for the alternative
@@ -94,8 +94,8 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     
     # compute the evidence and the uncertainty in parameters
     y_init = jnp.array([jnp.log(freq_best), *map0.y])
-    map1 = optimize(nlogpost1, y_init)
-    log_ev1 = quadrature(nlogpost1, map1, scheme_d3)
+    map1, success3 = optimize(nlogpost1, y_init)
+    log_ev1, success4 = quadrature(nlogpost1, map1, scheme_d3)
 
     
     # the suboptimal test statistics, just for demonstration
@@ -115,5 +115,6 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     return {'logB': log_ev1 - log_ev0, 'log_lik_ratio': E, 'white_periodogram': score_white,
             'cycles': T/period,
             'period': period, 'sigma': params[1], 'tau': params[2],
-            'A_const': amp[0], 'A_sin': amp[1], 'A_cos': amp[2]}
+            'A_const': amp[0], 'A_sin': amp[1], 'A_cos': amp[2],
+            'opt_success': success1 and success3, 'quad_success': success2 and success4}
 

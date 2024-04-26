@@ -13,6 +13,7 @@ export OMP_NUM_THREADS=1
 export OMP_PLACES=threads
 export OMP_PROC_BIND=spread
 
+
 # parameters of the script
 mode='sim'
 temp='basic'
@@ -21,7 +22,7 @@ whichamp=4
 
 # load environment
 module load python
-conda activate quasar
+conda activate periodax
 
 # prepare the folder structure
 python3 -m quasars.scratch_structure start $mode $temp $whichamp

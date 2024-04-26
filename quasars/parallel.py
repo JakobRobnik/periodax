@@ -141,3 +141,5 @@ def for_loop_with_job_manager(prep, num_threads, total_jobs, begin = 0):
             comm.send(rank, dest = 0) #request a new job
 
         finish(extra_args)
+
+    comm.Barrier()

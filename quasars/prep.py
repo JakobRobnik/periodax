@@ -12,9 +12,6 @@ scratch = scratch_base + 'quasars_scratch/'
 dir_data = scratch_base + 'quasars/'
 #/global/cfs/cdirs/m4031/abayer/PTF/
 
-ids = jnp.load(dir_data + 'ids.npy')
-#ids = jnp.array(pd.read_csv('quasars/known.csv')['id'], dtype= int)
-
 
 def within_night_averaging(time, data, err):
     """average the data within the same night"""
@@ -99,6 +96,9 @@ def prepare(file, qso_id, remove_outliers= True, average_within_night= True):
 
 def prepare_all(remove_outliers= True, average_within_night= True):
     
+    ids = jnp.load(dir_data + 'ids.npy')
+    #ids = jnp.array(pd.read_csv('quasars/known.csv')['id'], dtype= int)
+
     with h5py.File('PTF_LightCurves_35k.h5', 'r') as file:
         ids = list(file.keys())
         #np.save(scratch + 'ids.npy', np.array(ids, dtype= int))
