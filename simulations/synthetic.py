@@ -37,7 +37,7 @@ def cauchy_noise(key, time):
 def correlated_noise(key, time):
     tau = (jnp.max(time) - jnp.min(time)) * 0.05
     cov = psd.covariance(time, psd.drw_kernel(sigma= 1., tau= tau), jnp.ones(time.shape) * 0.2)
-    return irregular_spaced(key, cov)
+    return gauss_noise(key, cov)
 
 
 noise = {'white': Noise('white Gaussian', white_noise), 

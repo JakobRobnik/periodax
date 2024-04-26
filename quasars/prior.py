@@ -92,6 +92,56 @@ class PowerLaw:
 
 
 
+class Uniform_with_smooth_edge:
+
+
+    def __init__(self, low, high, edge_factor):
+        """Uniform prior with smooth edges.
+            Uniform in the range [a, b] and decays to zero in the regions [a-h, a] and [b, b+h].
+            Normalization constant is 1/ (b - a + h).
+            Returns:
+                nlogp function, taking x and returning -log p(x)
+        """
+        
+        h= jnp.log(edge_factor)
+        
+        a = low+h
+        b = high-h
+        
+        self.log_norm = jnp.log(b-a+h)
+        self.a = a
+        self.b = b
+        self.h = h
+        self.c = (b-a) * 0.5
+        
+    def nlogp(self, x):
+        centered_x = x - (self.a + self.c)
+        y = (jnp.abs(centered_x) - self.c) / self.h
+        edge = 0.5 * ( 1 + jnp.cos(jnp.pi * y))
+        return jax.lax.select(y < 1, -jnp.log((y >= 0) * edge + (y < 0.)) + self.log_norm, jnp.inf * jnp.ones(y.shape))
+    
+    ### we generate samples by rejection sampling with the uniform distribution proposal 
+    
+    def importance_weight(self, x):
+        centered_x = x - (self.a + self.c)
+        y = (jnp.abs(centered_x) - self.c) / self.h
+        edge = 0.5 * ( 1 + jnp.cos(jnp.pi * y))
+        return jax.lax.select(y < 0, 1., edge)
+    
+    def proposal(self, state):
+        _, _, key = state
+        key1, key2, key3 = jax.random.split(key, 3)
+        x = jax.random.uniform(key1, minval= self.a - self.h, maxval= self.b + self.h)
+        acc_prob = self.importance_weight(x)
+        reject = jax.random.bernoulli(key2, 1.-acc_prob).astype(bool)
+        return x, reject, key3
+
+    def rv(self, key):
+        cond = lambda state: state[1]
+        init= (0., True, key)
+        state= jax.lax.while_loop(cond, self.proposal, init)
+        return state[0]
+    
 
 ### null priors
 
@@ -106,11 +156,11 @@ class Normal:
     
 
 
-def prepare(freq_min, redshift):    
+def prepare(freq, redshift):    
     
     alpha= 8./3. # power law exponent for the period prior
-    PriorAlterantive = SmoothenEdge(PowerLaw(-alpha - 2., freq_min), 1.2)
-
+    #PriorAlterantive = SmoothenEdge(PowerLaw(-alpha - 2., freq[0]), 1.2)
+    PriorAlterantive = Uniform_with_smooth_edge(jnp.log(freq[0]), jnp.log(freq[-1]), 1.2)
     PriorNull = Normal()
     
     ### prior odds ###

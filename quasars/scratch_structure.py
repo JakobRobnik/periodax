@@ -14,36 +14,29 @@ dir_results = 'data/'
 
 
 def base_name(mode, temp, which_amp):
-    return scratch + mode + '_' + temp + '_' +str(which_amp) + '/'
+    return mode + '_' + str(temp) + '_' +str(which_amp) + '/'
     
 
-def clean(mode, temp, which_amp):
+def start(base):
     """empty scratch and make the structure again"""
-    base = base_name(mode, temp, which_amp)
-    
-    if os.path.exists(base):
-        shutil.rmtree(base)
-    for folder in ['', 'candidates/', 'error_log/']:
-        os.mkdir(base + folder)
-    
-
-def out_name(mode, temp, which_amp, extra_name):
-    return mode + ('_randomized' if (temp == 'randomized') else '') + '_' + which_amp + extra_name
+    _base = scratch + base
+    if os.path.exists(_base):
+        shutil.rmtree(_base)
+    os.mkdir(_base)
     
     
-def finish(mode, temp, which_amp, extra_name):
+def finish(base):
     
-    base = base_name(mode, temp, which_amp)
-    error_log(base)
-    join(base + 'candidates/', out_name(mode, temp, which_amp, extra_name))
+    join(dir_in= scratch + base,
+         file_out= dir_results + base)
     
     
-def join(folder, name):
+def join(dir_in, file_out):
 
     DF = []
     
-    for file in os.listdir(folder):
-        df = pd.read_csv(folder + file)
+    for file in os.listdir(dir_in):
+        df = pd.read_csv(dir_in + file)
         DF.append(df)
 
     if len(DF) == 0:  # there may be no files in the directory
@@ -51,91 +44,25 @@ def join(folder, name):
         return
 
     DF = pd.concat(DF)
-    DF.to_csv(dir_results + name + '.csv', index=False)
-
-
-
-
-def error_log(base):
-    """Combine the error logs from individual workers in a single file"""
-    dir_base = base + 'error_log/'
-    log_name = dir_base + 'combined_error_log.txt'
-    
-    # error log
-    log = open(log_name, 'wt') #combined results
-    for subdir in os.listdir(dir_base):
-        #if subdir[:9] == 'error_log':
-        for line in open(dir_base + subdir, 'r'):
-            log.write(line)
-    log.close()
-
-    simplify_error_log(log_name, dir_results + 'error_log')
-
-
-
-def simplify_error_log(file_in, file_out):
-
-    #convert to a list
-    log = []
-    numbers = []
-    text = False
-    barrier_word = '------------\n'
-    for line in open(file_in):
-        if line == barrier_word:
-            text = False
-        elif not text:
-            numbers.append((int)(line[:-3]))
-            log.append('')
-            text = True
-        else:
-            log[-1] += line
-
-    os.remove(file_in)
-
-    #reorganize list
-    short_log = []
-    short_num = []
-    for i in range(len(numbers)):
-        if log[i] not in short_log:
-            short_log.append(log[i])
-            short_num.append([numbers[i], ])
-        else:
-            short_num[short_log.index(log[i])].append(numbers[i])
-
-    sort = np.argsort([-len(nums) for nums in short_num])
-    sorted_short_num, sorted_short_log = [0, ] * len(short_num), ['', ]*len(short_num)
-    for i in range(len(short_num)):
-        sorted_short_num[i] = short_num[sort[i]]
-        sorted_short_log[i] = short_log[sort[i]]
-
-    #print to file
-    file = open(file_out + '.txt', 'w')
-    for i in range(len(short_num)):
-        print(sorted_short_num[i], file = file)
-        print(sorted_short_log[i], file=file)
-        print(barrier_word, file = file)
-    file.close()
-    
-    np.save(file_out + '_ids.npy', numbers) # save the ids of the stars where the errors occured
-
-
+    DF.to_csv(file_out + '.csv', index=False)
 
     
 
 if __name__ == '__main__':
     
-    extra_name = sys.argv[1]
+    start_finish = sys.argv[1]
     
     mode= sys.argv[2]
     temp= sys.argv[3]
-    whichamp= sys.argv[4]
+    amp= sys.argv[4]
+    base = base_name(mode, temp, amp)
 
     
-    if extra_name == 'start':
-        clean(mode, temp, whichamp)
+    if start_finish == 'start':
+        start(base)
         
-    elif extra_name == 'finish':
-        finish(mode, temp, whichamp, '')
+    elif start_finish == 'finish':
+        finish(base)
 
     else:
-        finish(mode, temp, whichamp, extra_name)
+        raise ValueError("start_finish= " + mode + " is not a valid option. Should be 'start' or 'finish'.")    

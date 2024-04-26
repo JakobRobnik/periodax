@@ -25,13 +25,13 @@ def sim_tp(key, sqrt_cov, amplitude):
     phase = jax.random.uniform(key1) * 2 * jnp.pi
     freq_injected = jax.random.choice(key3, freq)
     signal= jnp.sin(2 * jnp.pi * freq_injected * time + phase) * amplitude
-    data = irregular_spaced(key2, cov) + signal
+    data = gauss_noise(key2, cov) + signal
     
     return periodogram.lomb_scargle(time, data, sqrt_cov= sqrt_cov)(freq_injected)[0]
 
 
 def sim_fp(key, sqrt_cov):
-    data = irregular_spaced(key, cov)
+    data = gauss_noise(key, cov)
     return jnp.max(jax.vmap(periodogram.func(time, data, sqrt_cov= sqrt_cov))(freq)[0])
 
 

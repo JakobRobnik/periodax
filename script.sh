@@ -4,37 +4,26 @@
 #SBATCH -C cpu
 #SBATCH -q regular
 #SBATCH -J quasars
-#SBATCH -t 02:30:00
+#SBATCH -t 02:15:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
 
-# OpenMP settings:
-export OMP_NUM_THREADS=1
-export OMP_PLACES=threads
-export OMP_PROC_BIND=spread
-
-
 # parameters of the script
-mode='sim'
-temp='basic'
-whichamp=4
-#temp='randomized'
+mode='real'
+temp=0
+whichamp=0
 
 # load environment
 module load python
-conda activate periodax
+conda activate quasar
 
 # prepare the folder structure
 python3 -m quasars.scratch_structure start $mode $temp $whichamp
-
-# run the analysis (split in batches because of the weird jax error)
-for i in {0..17}
+for i in {0..8}
 do
-   start=$((i*2000))
-   finish=$((start+2000))
+   start=$((i*3950))
+   finish=$((start+3950))
    echo $start
-   srun -n 128 -c 1 python -m quasars.run $start $finish $mode $temp $whichamp
+   python -m quasars.runmult $start $finish
 done
-
-# combine the results in a single file
 python3 -m quasars.scratch_structure finish $mode $temp $whichamp

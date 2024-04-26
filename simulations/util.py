@@ -50,7 +50,7 @@ def regular_spaced(key, PSD, mask):
     return data[mask]
 
 
-def irregular_spaced(key, cov):
+def gauss_noise(key, cov):
     
     return jnp.linalg.cholesky(cov) @ jax.random.normal(key, shape= (cov.shape[0], ))
 
