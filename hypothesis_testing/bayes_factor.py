@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from scipy.optimize import minimize
-#from jax.scipy.optimize import minimize
+#from jax.scipy.optimize import minimize as jax_minimize
 
 from hypothesis_testing import quad
 
@@ -27,9 +27,9 @@ def optimize(nlogp, init):
        Returns:
             ModeInfo object
     """
-    # opt = minimize(jax.value_and_grad(nlogp), x0 = init, method= 'Newton-CG', 
-    #               jac= True, hess= jax.hessian(nlogp), options= {'maxiter': 100})
-    opt = minimize(nlogp, x0 = init, method = 'BFGS')
+    opt = minimize(jax.value_and_grad(nlogp), x0 = init, method= 'BFGS', 
+                  jac= True, hess= jax.hessian(nlogp), options= {'maxiter': 100})
+    #opt = minimize(nlogp, x0 = init, method = 'BFGS')
     hess = jax.hessian(nlogp)(opt.x)
     return ModeInfo(opt.x, opt.fun, jnp.linalg.inv(hess)), opt.success
 

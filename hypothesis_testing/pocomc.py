@@ -37,6 +37,7 @@ def run_pocomc(nlog_lik):
     return log_ev0, log_ev0_err, results
     
     
+
 def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean= True, temp_func= periodogram.basic):
     
     nlogpost0, nlogpost1, nloglik0, nloglik1, get_amp = psd.nlog_density(time, data, err_data, nlogpr_logfreq, nlogpr_null, floating_mean, temp_func)
@@ -49,24 +50,23 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     results['log_ev_pocoMC'] = log_ev
     results['log_ev_err_pocoMC'] = log_ev_err
     
-    ### analyze the null model ###
+    # quadrature
     y_init = jnp.log(jnp.array([0.1, 120])) # mode of the prior distribution
-    map0 = optimize(nlogpost0, y_init)
-    log_ev0 = quadrature(nlogpost0, map0, scheme_d2)
+    map0, success_opt = optimize(nlogpost0, y_init)
+    log_ev0, success_quad = quadrature(nlogpost0, map0, scheme_d2)
     
     results['log_ev_quad'] = log_ev0
     
-    results.to_csv('pocoMC_results.csv', sep= '\t', index= False)
+    print(results)
     
     
     
 if __name__ == '__main__':
     
     id = 100051
-    time, data, mag_err, freq = prep.prepare_data(id)
+    time, data, mag_err, freq, redshift = prep.load_data(id)
     
-    PriorAlterantive = prior.SmoothenEdge(prior.PowerLaw(-11./3., freq[0], freq[-1]), 1.2)
-    PriorNull = prior.Normal()
+    PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
     
-    logb, s1, s2 = logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp)
+    logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp)
     
