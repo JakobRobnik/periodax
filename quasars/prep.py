@@ -135,7 +135,7 @@ def load_data(id, remove_outliers= True, average_within_night= True):
     
     # determine the frequency grid
     T = jnp.max(time) - jnp.min(time)
-    freq_bounds = jnp.array([1.5/T, 1./60.])
+    freq_bounds = jnp.array([2./T, 1./60.])
     freq = jnp.logspace(*jnp.log10(freq_bounds), 1000)
     
     return time, mag, mag_err, freq, redshift

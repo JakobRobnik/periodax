@@ -1,11 +1,11 @@
 import jax
 import jax.numpy as jnp
-from scipy.optimize import minimize
-#from jax.scipy.optimize import minimize as jax_minimize
-
-from hypothesis_testing import quad
-
+#from scipy.optimize import minimize
+from jax.scipy.optimize import minimize
+import matplotlib.pyplot as plt
 from typing import NamedTuple, Any
+
+from hypothesis_testing import quad, visualization
 from LombScargle import periodogram, psd
 
 scheme_d2 = quad.get_scheme(2, 6)
@@ -27,8 +27,8 @@ def optimize(nlogp, init):
        Returns:
             ModeInfo object
     """
-    opt = minimize(jax.value_and_grad(nlogp), x0 = init, method= 'BFGS', 
-                  jac= True, hess= jax.hessian(nlogp), options= {'maxiter': 100})
+    opt = minimize(jax.value_and_grad(nlogp), x0 = init, method= 'Newton-CG', 
+                  jac= True, hess= jax.hessian(nlogp), options= {'maxiter': 50})
     #opt = minimize(nlogp, x0 = init, method = 'BFGS')
     hess = jax.hessian(nlogp)(opt.x)
     return ModeInfo(opt.x, opt.fun, jnp.linalg.inv(hess)), opt.success
@@ -73,7 +73,7 @@ def quadrature(nlogp, MAP, quad_scheme):
     
 
 
-def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean= True, temp_func= periodogram.basic):
+def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean= True, temp_func= periodogram.basic, plot_name= None):
     """log Bayes factor for the sinusoidal variability in the correlated Gaussian noise (ignores the marginalization over the amplitude parameters)
         priors are -log density and are in terms of log parameters"""
     
@@ -85,6 +85,7 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     map0, success1 = optimize(nlogpost0, y_init)
     log_ev0, success2 = quadrature(nlogpost0, map0, scheme_d2)
     
+    
     ### analyze the alternative model ###
     # find the best candidate for the alternative
     cov = psd.covariance(time, psd.drw_kernel(*jnp.exp(map0.y)), err_data)
@@ -92,6 +93,9 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     score_adjusted = score - 2 * (nlogpr_logfreq(jnp.log(freq)) - nlogpr_logfreq(jnp.log(freq[len(freq)//2])))
     freq_best = freq[jnp.argmax(score_adjusted)]
     
+    if plot_name != None:
+        visualization.main(nlogpost0, map0, scheme_d2, freq, score, score_adjusted, plot_name)
+        
     # compute the evidence and the uncertainty in parameters
     y_init = jnp.array([jnp.log(freq_best), *map0.y])
     map1, success3 = optimize(nlogpost1, y_init)
@@ -112,15 +116,10 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     period = 1/params[0]
     T = jnp.max(time) - jnp.min(time)
     
-    success = success1 and success0
-    if success:
-        logB = log_ev1 - log_ev0
-    else: 
-        logB = None
-    
     return {'logB': log_ev1 - log_ev0, 'log_lik_ratio': E, 'white_periodogram': score_white,
             'cycles': T/period,
             'period': period, 'sigma': params[1], 'tau': params[2],
             'A_const': amp[0], 'A_sin': amp[1], 'A_cos': amp[2],
-            'opt_success': success1 and success3, 'quad_success': success2 and success4}
+            'success': success1 and success3 and success2 and success4
+            }
 

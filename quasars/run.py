@@ -53,27 +53,27 @@ def save(id, results, base,
     
     ### save the results ###
     df = pd.DataFrame(results, index= [0])
-    print(df)
     df.to_csv(base + str(id) + '.csv', index= False)
     
     return True
 
     
 
-def real(base, ids, amplitude, temp_func, keys):
+def real(base, ids, amplitude, temp_func, keys, plot):
     
     def mainn(job_id):
         id, key = ids[job_id], keys[job_id]
         time, data, mag_err, freq, redshift = load_data(id)
         PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
-
-        results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, temp_func= temp_func(key))
+        results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
+                      temp_func= temp_func(key), 
+                      plot_name= str(job_id) + '.png' if plot else None) 
         return save(id, results, base, log_prior_odds, len(data))
 
     return mainn
 
 
-def sim(base, ids, amplitude, temp_func, keys):
+def sim(base, ids, amplitude, temp_func, keys, plot):
 
     def mainn(job_id):
         id, key = ids[job_id], keys[job_id]
@@ -84,7 +84,9 @@ def sim(base, ids, amplitude, temp_func, keys):
         model, period_injected = signal(key2, time, PriorAlterantive.rvs)
         data = noise(key1, time, mag_err, PriorNull.rvs) + amplitude * model
         
-        results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, temp_func= temp_func(key3))
+        results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
+                      temp_func= temp_func(key3),
+                      plot_name= str(job_id) + '.png' if plot else None)
         
         save(id, results, base, log_prior_odds, len(data), period_injected= period_injected)
     
@@ -104,7 +106,7 @@ def sim(base, ids, amplitude, temp_func, keys):
     
 
 
-def get_main(amplitudes, delta, ids):
+def get_main(amplitudes, delta, ids, plot):
         
     # settings of the script
 
@@ -126,10 +128,10 @@ def get_main(amplitudes, delta, ids):
     keys = jax.random.split(jax.random.PRNGKey(42), 10 * len(ids)).reshape(10, len(ids), 2)[temp]
 
     if mode == 'real':
-        return real(base, ids, amplitude, temp_func, keys)
+        return real(base, ids, amplitude, temp_func, keys, plot)
 
     elif mode == 'sim':
-        return sim(base, ids, amplitude, temp_func, keys)
+        return sim(base, ids, amplitude, temp_func, keys, plot)
     else:
         raise ValueError("mode= " + mode + " is not a valid option. Should be 'real' or 'sim'.")    
 
@@ -155,14 +157,14 @@ def run_main(mainn, ids):
 
 if __name__ == "__main__":
     # parameters to the script:
-    #  start, finish: integers, quasar_ids[start:finish] will be processed. If finish is larger than the number of quasars, it will be set to the number of quasars
+    #  start, finish: integers, quasar_ids[start:finish] will be processed. Used only in run_main. If finish is larger than the number of quasars, it will be set to the number of quasars
     #  mode: 'real' or 'sim' standing for analysis of the real data or simulations
     #  temp: integer. If 0, the real (sinusoidal) template will be used. If non-negative, period will be randomized and different integers correspond to different realizations
     #  amp: amplitudes[amp] will be the amplitude of the injected signal. Should be 0, if no signal is to be injected.
 
     ids = np.load(scratch_structure.dir_data + 'ids.npy')
-
-    mainn = get_main(amplitudes = [0.0, 0.1, 0.2, 0.3, 0.4], delta= 2., ids= ids)
-    mainn(25285)
-    #mainn(0)
-    #run_main(mainn, ids)
+    mainn = get_main(amplitudes = [0.0, 0.1, 0.2, 0.3, 0.4], delta= 2., ids= ids, plot= False)
+    #mainn(25285)
+    run_main(mainn, ids)
+    
+    
