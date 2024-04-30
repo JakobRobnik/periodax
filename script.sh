@@ -25,6 +25,6 @@ do
    start=$((i*3950))
    finish=$((start+3950))
    echo $start
-   python -m quasars.runmult $start $finish
+   python -m quasars.run $start $finish $mode $temp $whichamp
 done
 python3 -m quasars.scratch_structure finish $mode $temp $whichamp
