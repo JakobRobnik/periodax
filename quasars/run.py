@@ -106,10 +106,20 @@ def sim(base, ids, amplitude, temp_func, keys, plot):
     
 
 
-def get_main(amplitudes, delta, ids, plot):
-        
-    # settings of the script
 
+
+if __name__ == "__main__":
+    # parameters to the script:
+    #  start, finish: integers, quasar_ids[start:finish] will be processed. Used only in run_main. If finish is larger than the number of quasars, it will be set to the number of quasars
+    #  mode: 'real' or 'sim' standing for analysis of the real data or simulations
+    #  temp: integer. If 0, the real (sinusoidal) template will be used. If non-negative, period will be randomized and different integers correspond to different realizations
+    #  amp: amplitudes[amp] will be the amplitude of the injected signal. Should be 0, if no signal is to be injected.
+
+    ids = np.load(scratch_structure.dir_data + 'ids.npy')
+    amplitudes = [0.0, 0.1, 0.2, 0.3, 0.4]
+    delta= 2.
+    plot= False
+    
     mode = sys.argv[3]
     temp = int(sys.argv[4])
     amp = int(sys.argv[5])
@@ -128,15 +138,13 @@ def get_main(amplitudes, delta, ids, plot):
     keys = jax.random.split(jax.random.PRNGKey(42), 10 * len(ids)).reshape(10, len(ids), 2)[temp]
 
     if mode == 'real':
-        return real(base, ids, amplitude, temp_func, keys, plot)
+        mainn= real(base, ids, amplitude, temp_func, keys, plot)
 
     elif mode == 'sim':
-        return sim(base, ids, amplitude, temp_func, keys, plot)
+        mainn= sim(base, ids, amplitude, temp_func, keys, plot)
     else:
         raise ValueError("mode= " + mode + " is not a valid option. Should be 'real' or 'sim'.")    
 
-
-def run_main(mainn, ids):
     
     start, finish = int(sys.argv[1]), int(sys.argv[2])
     finish = min(finish, len(ids))
@@ -153,18 +161,3 @@ def run_main(mainn, ids):
             None
         
     print((tt() - t1)/60.)
-
-
-if __name__ == "__main__":
-    # parameters to the script:
-    #  start, finish: integers, quasar_ids[start:finish] will be processed. Used only in run_main. If finish is larger than the number of quasars, it will be set to the number of quasars
-    #  mode: 'real' or 'sim' standing for analysis of the real data or simulations
-    #  temp: integer. If 0, the real (sinusoidal) template will be used. If non-negative, period will be randomized and different integers correspond to different realizations
-    #  amp: amplitudes[amp] will be the amplitude of the injected signal. Should be 0, if no signal is to be injected.
-
-    ids = np.load(scratch_structure.dir_data + 'ids.npy')
-    mainn = get_main(amplitudes = [0.0, 0.1, 0.2, 0.3, 0.4], delta= 2., ids= ids, plot= False)
-    #mainn(25285)
-    run_main(mainn, ids)
-    
-    

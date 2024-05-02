@@ -9,7 +9,8 @@ import pocomc
 from quasars import prior, prep
 from LombScargle import periodogram, psd
 from hypothesis_testing.bayes_factor import optimize, quadrature, scheme_d2
-
+from simulations.util import gauss_noise
+    
 
 
 def null_prior_poco():
@@ -60,13 +61,38 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     print(results)
     
     
+def gauss(key, time, mag_err):
+    sigma, tau = 0.1, 120.
+    kernel=  psd.drw_kernel(sigma= sigma, tau= tau)
+    cov = psd.covariance(time, kernel, mag_err)
+    return gauss_noise(key, cov)
+
+
+def sim():
+    
+    # load the time stamps and errors of the real data
+    df= pd.read_csv('data/100051.csv')
+    time = jnp.array(df['time'])
+    mag_err = jnp.array(df['err'])
+    redshift= 0.
+
+    # simulate the data
+    mag= gauss(key= jax.random.PRNGKey(42), time= time, mag_err= mag_err)
+    
+    # determine the frequency grid
+    T = jnp.max(time) - jnp.min(time)
+    freq_bounds = jnp.array([2./T, 1./60.])
+    freq = jnp.logspace(*jnp.log10(freq_bounds), 1000)
+  
+    
+    return time, mag, mag_err, freq, redshift
+    
     
 if __name__ == '__main__':
     
-    id = 100051
-    time, data, mag_err, freq, redshift = prep.load_data(id)
+    time, mag, mag_err, freq, redshift = sim()
     
     PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
     
-    logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp)
+    logB(time, mag, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp)
     
