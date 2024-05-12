@@ -4,7 +4,7 @@
 #SBATCH -C cpu
 #SBATCH -q regular
 #SBATCH -J quasars
-#SBATCH -t 02:15:00
+#SBATCH -t 00:30:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
 
@@ -20,7 +20,7 @@ conda activate quasar
 
 # prepare the folder structure
 python3 -m quasars.scratch_structure start $mode $temp $whichamp
-for i in {0..8}
+for i in {0..1}
 do
    start=$((i*3950))
    finish=$((start+3950))

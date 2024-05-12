@@ -58,39 +58,24 @@ def save(id, results, base,
     return True
 
     
+# def sim(base, ids, amplitude, temp_func, keys, plot):
 
-def real(base, ids, amplitude, temp_func, keys, plot):
+#     def mainn(job_id):
+#         id, key = ids[job_id], keys[job_id]
+#         time, _, mag_err, freq, redshift = load_data(id, remove_outliers= False, average_within_night= True)
+#         PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
+        
+#         key1, key2, key3 = jax.random.split(key, 3)
+#         model, period_injected = signal(key2, time, PriorAlterantive.rvs)
+#         data = noise(key1, time, mag_err, PriorNull.rvs) + amplitude * model
+        
+#         results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
+#                       temp_func= temp_func(key3),
+#                       plot_name= str(job_id) + '.png' if plot else None)
+        
+#         save(id, results, base, log_prior_odds, len(data), period_injected= period_injected)
     
-    def mainn(job_id):
-        id, key = ids[job_id], keys[job_id]
-        time, data, mag_err, freq, redshift = load_data(id)
-        PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
-        results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
-                      temp_func= temp_func(key), 
-                      plot_name= str(job_id) + '.png' if plot else None) 
-        return save(id, results, base, log_prior_odds, len(data))
-
-    return mainn
-
-
-def sim(base, ids, amplitude, temp_func, keys, plot):
-
-    def mainn(job_id):
-        id, key = ids[job_id], keys[job_id]
-        time, _, mag_err, freq, redshift = load_data(id, remove_outliers= False, average_within_night= True)
-        PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
-        
-        key1, key2, key3 = jax.random.split(key, 3)
-        model, period_injected = signal(key2, time, PriorAlterantive.rvs)
-        data = noise(key1, time, mag_err, PriorNull.rvs) + amplitude * model
-        
-        results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
-                      temp_func= temp_func(key3),
-                      plot_name= str(job_id) + '.png' if plot else None)
-        
-        save(id, results, base, log_prior_odds, len(data), period_injected= period_injected)
-    
-    return mainn
+#     return mainn
     
 # def injected(job_id):
 #     time, _, mag_err, freq, redshift = load_data(ids[job_id], remove_outliers= False, average_within_night= True)
@@ -105,6 +90,19 @@ def sim(base, ids, amplitude, temp_func, keys, plot):
 #     save(job_id, results, log_prior_odds, len(data), id= ids[job_id], period_injected= period_injected)
     
 
+
+def real(params):
+    job_id, id, plot = params
+    mode, temp, amp = 'real', 0, 0
+    base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp)
+
+    time, data, mag_err, freq, redshift = load_data(id)
+    PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
+    results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
+                    #temp_func= temp_func(key), 
+                    plot_name= str(job_id) + '.png' if plot else None) 
+
+    return save(id, results, base, log_prior_odds, len(data))
 
 
 
@@ -127,23 +125,23 @@ if __name__ == "__main__":
     base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp)
     amplitude = amplitudes[amp]
         
-    if temp == 0:
-        temp_func = lambda key: periodogram.basic
+    # if temp == 0:
+    #     temp_func = lambda key: periodogram.basic
 
-    else:
-        temp_func = lambda key: periodogram.randomized_period(key, 2000, delta)
+    # else:
+    #     temp_func = lambda key: periodogram.randomized_period(key, 2000, delta)
 
 
     # setup
     keys = jax.random.split(jax.random.PRNGKey(42), 10 * len(ids)).reshape(10, len(ids), 2)[temp]
 
-    if mode == 'real':
-        mainn= real(base, ids, amplitude, temp_func, keys, plot)
+    # if mode == 'real':
+    #     mainn= real(base, ids, amplitude, temp_func, keys, plot)
 
-    elif mode == 'sim':
-        mainn= sim(base, ids, amplitude, temp_func, keys, plot)
-    else:
-        raise ValueError("mode= " + mode + " is not a valid option. Should be 'real' or 'sim'.")    
+    # elif mode == 'sim':
+    #     mainn= sim(base, ids, amplitude, temp_func, keys, plot)
+    # else:
+    #     raise ValueError("mode= " + mode + " is not a valid option. Should be 'real' or 'sim'.")    
 
     
     start, finish = int(sys.argv[1]), int(sys.argv[2])
