@@ -107,12 +107,14 @@ def real(id):
 
 def real_lee3(params):
     id, key, temp, amp = params
-    
+    key = jax.random.key(42)
+
     mode = 'real'
     base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp) + '/'
 
     time, data, mag_err, freq, redshift = load_data(id)
     PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
+    print(key)
     results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
                     temp_func= periodogram.randomized_period(key, 2000, delta), 
                     plot_name= str(id) + '.png' if plot else None) 
@@ -149,7 +151,6 @@ if __name__ == "__main__":
     myid = 14383
     id = ids[myid]
     key = jax.random.split(jax.random.key(42), 10 * len(ids)).reshape(10, len(ids))[temp][myid]  # if you change this, change also in analyze.ipynb
-    print(key)
     real_lee3([id, key, temp, amp])
     
     exit()

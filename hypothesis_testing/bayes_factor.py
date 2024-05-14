@@ -76,15 +76,14 @@ def logB(time, data, err_data, freq, nlogpr_logfreq, nlogpr_null, floating_mean=
     """log Bayes factor for the sinusoidal variability in the correlated Gaussian noise (ignores the marginalization over the amplitude parameters)
         priors are -log density and are in terms of log parameters"""
     
-
+    
     nlogpost0, nlogpost1, nloglik0, nloglik1, get_amp = psd.nlog_density(time, data, err_data, nlogpr_logfreq, nlogpr_null, floating_mean, temp_func)
-  
+
     ### analyze the null model ###
     y_init = jnp.log(jnp.array([0.1, 120])) # mode of the prior distribution
     map0, success1 = optimize(nlogpost0, y_init)
     log_ev0, success2 = quadrature(nlogpost0, map0, scheme_d2)
-    
-    
+
     ### analyze the alternative model ###
     # find the best candidate for the alternative
     cov = psd.covariance(time, psd.drw_kernel(*jnp.exp(map0.y)), err_data)
