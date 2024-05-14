@@ -71,7 +71,6 @@ def randomized_period(key, num, delta):
     """null template with randomized period"""
     
     periods = jnp.exp(jax.random.normal(key, (num,)) * jnp.log(delta))
-    print(periods)
     _grid = jnp.cumsum(periods)
     _grid_paddled = jnp.insert(_grid, 0, 0.)
     
