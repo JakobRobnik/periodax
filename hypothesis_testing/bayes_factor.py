@@ -1,7 +1,6 @@
 import jax
 import jax.numpy as jnp
-#from scipy.optimize import minimize
-from jax.scipy.optimize import minimize
+from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from typing import NamedTuple, Any
 
@@ -27,9 +26,9 @@ def optimize(nlogp, init):
        Returns:
             ModeInfo object
     """
-    opt = minimize(jax.value_and_grad(nlogp), x0 = init, method= 'Newton-CG', 
-                  jac= True, hess= jax.hessian(nlogp), options= {'maxiter': 50})
-    #opt = minimize(nlogp, x0 = init, method = 'BFGS')
+    # opt = minimize(jax.value_and_grad(nlogp), x0 = init, method= 'Netown-CG', 
+    #               jac= True, hess= jax.hessian(nlogp), options= {'maxiter': 50})
+    opt = minimize(jax.value_and_grad(nlogp), x0 = init, method= 'BFGS', jac= True, options= {'maxiter': 50})
     hess = jax.hessian(nlogp)(opt.x)
     return ModeInfo(opt.x, opt.fun, jnp.linalg.inv(hess)), opt.success
 

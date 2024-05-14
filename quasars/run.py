@@ -22,7 +22,8 @@ from LombScargle import psd, periodogram
 from hypothesis_testing.bayes_factor import logB
 from simulations.util import gauss_noise
 
-
+delta= 2.
+plot= 0
 
 
 def noise(key, time, mag_err, generator_null):
@@ -53,29 +54,30 @@ def save(id, results, base,
     
     ### save the results ###
     df = pd.DataFrame(results, index= [0])
-    df.to_csv(base + str(id) + '.csv', index= False)
+    print(df)
+    #df.to_csv(base + str(id) + '.csv', index= False)
     
     return True
 
     
-# def sim(base, ids, amplitude, temp_func, keys, plot):
+def sim(base, ids, amplitude, temp_func, keys, plot):
 
-#     def mainn(job_id):
-#         id, key = ids[job_id], keys[job_id]
-#         time, _, mag_err, freq, redshift = load_data(id, remove_outliers= False, average_within_night= True)
-#         PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
+    def mainn(job_id):
+        id, key = ids[job_id], keys[job_id]
+        time, _, mag_err, freq, redshift = load_data(id, remove_outliers= False, average_within_night= True)
+        PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
         
-#         key1, key2, key3 = jax.random.split(key, 3)
-#         model, period_injected = signal(key2, time, PriorAlterantive.rvs)
-#         data = noise(key1, time, mag_err, PriorNull.rvs) + amplitude * model
+        key1, key2, key3 = jax.random.split(key, 3)
+        model, period_injected = signal(key2, time, PriorAlterantive.rvs)
+        data = noise(key1, time, mag_err, PriorNull.rvs) + amplitude * model
         
-#         results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
-#                       temp_func= temp_func(key3),
-#                       plot_name= str(job_id) + '.png' if plot else None)
+        results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
+                      temp_func= temp_func(key3),
+                      plot_name= str(job_id) + '.png' if plot else None)
         
-#         save(id, results, base, log_prior_odds, len(data), period_injected= period_injected)
+        save(id, results, base, log_prior_odds, len(data), period_injected= period_injected)
     
-#     return mainn
+    return mainn
     
 # def injected(job_id):
 #     time, _, mag_err, freq, redshift = load_data(ids[job_id], remove_outliers= False, average_within_night= True)
@@ -91,16 +93,29 @@ def save(id, results, base,
     
 
 
-def real(params):
-    job_id, id, plot = params
+def real(id):
     mode, temp, amp = 'real', 0, 0
-    base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp)
+    base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp) + '/'
 
     time, data, mag_err, freq, redshift = load_data(id)
     PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
     results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
-                    #temp_func= temp_func(key), 
-                    plot_name= str(job_id) + '.png' if plot else None) 
+                    plot_name= str(id) + '.png' if plot else None) 
+
+    return save(id, results, base, log_prior_odds, len(data))
+
+
+def real_lee3(params):
+    id, key, temp, amp = params
+    
+    mode = 'real'
+    base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp) + '/'
+
+    time, data, mag_err, freq, redshift = load_data(id)
+    PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
+    results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
+                    temp_func= periodogram.randomized_period(key, 2000, delta), 
+                    plot_name= str(id) + '.png' if plot else None) 
 
     return save(id, results, base, log_prior_odds, len(data))
 
@@ -115,34 +130,14 @@ if __name__ == "__main__":
 
     ids = np.load(scratch_structure.dir_data + 'ids.npy')
     amplitudes = [0.0, 0.1, 0.2, 0.3, 0.4]
-    delta= 2.
-    plot= False
+   
     
     mode = sys.argv[3]
     temp = int(sys.argv[4])
     amp = int(sys.argv[5])
     
-    base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp)
     amplitude = amplitudes[amp]
         
-    # if temp == 0:
-    #     temp_func = lambda key: periodogram.basic
-
-    # else:
-    #     temp_func = lambda key: periodogram.randomized_period(key, 2000, delta)
-
-
-    # setup
-    keys = jax.random.split(jax.random.PRNGKey(42), 10 * len(ids)).reshape(10, len(ids), 2)[temp]
-
-    # if mode == 'real':
-    #     mainn= real(base, ids, amplitude, temp_func, keys, plot)
-
-    # elif mode == 'sim':
-    #     mainn= sim(base, ids, amplitude, temp_func, keys, plot)
-    # else:
-    #     raise ValueError("mode= " + mode + " is not a valid option. Should be 'real' or 'sim'.")    
-
     
     start, finish = int(sys.argv[1]), int(sys.argv[2])
     finish = min(finish, len(ids))
@@ -151,11 +146,35 @@ if __name__ == "__main__":
     mp.set_start_method('spawn')
     from time import time as tt
     t1 = tt()
+    myid = 14383
+    id = ids[myid]
+    key = jax.random.split(jax.random.key(42), 10 * len(ids)).reshape(10, len(ids))[temp][myid]  # if you change this, change also in analyze.ipynb
+    print(key)
+    real_lee3([id, key, temp, amp])
+    
+    exit()
+    id = ids[start:finish]
+    keys = jax.random.split(jax.random.key(42), 10 * len(ids)).reshape(10, len(ids))[temp][start:finish]  # if you change this, change also in analyze.ipynb
+    
+    # real(129212)
+    # exit()
+    if temp == 0:
+    
+        with mp.Pool(processes=num_cores) as pool:
+            results = pool.imap_unordered(real, id)
 
-    with mp.Pool(processes=num_cores) as pool:
-        results = pool.imap_unordered(mainn, np.arange(start, finish))
-
-        for result in results: #useless, but otherwise multiprocessing doesn't think it is neccessary to actually run the previous line
-            None
+            for result in results: #useless, but otherwise multiprocessing doesn't think it is neccessary to actually run the previous line
+                None
+    
+    
+    else:
+        params_transposed = [id, keys, [temp, ] * len(id), [amp, ] * len(id)]
+        params = [[row[i] for row in params_transposed] for i in range(len(id))]
         
+        with mp.Pool(processes=num_cores) as pool:
+            results = pool.imap_unordered(real_lee3, params)
+
+            for result in results: #useless, but otherwise multiprocessing doesn't think it is neccessary to actually run the previous line
+                None        
+    
     print((tt() - t1)/60.)

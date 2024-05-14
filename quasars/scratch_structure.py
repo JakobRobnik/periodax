@@ -7,19 +7,21 @@ import numpy as np
 # Here are functions that handle the scratch folder (clean it, extract the results in single files, etc.)
 
 
+
 scratch_base = '/pscratch/sd/j/jrobnik/'
+home = '/global/homes/j/jrobnik/periodogram/'
 scratch = scratch_base + 'quasars_scratch/'
 dir_data = scratch_base + 'quasars/'
-dir_results = 'data/'
+dir_results = home + 'data/'
 
 
 def base_name(mode, temp, which_amp):
-    return mode + '_' + str(temp) + '_' +str(which_amp) + '/'
+    return mode + '_' + str(temp) + '_' +str(which_amp)
     
 
 def start(base):
     """empty scratch and make the structure again"""
-    _base = scratch + base
+    _base = scratch + base + '/'
     if os.path.exists(_base):
         shutil.rmtree(_base)
     os.mkdir(_base)
@@ -27,7 +29,7 @@ def start(base):
     
 def finish(base):
     
-    join(dir_in= scratch + base,
+    join(dir_in= scratch + base + '/',
          file_out= dir_results + base)
     
     
