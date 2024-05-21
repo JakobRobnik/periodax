@@ -22,7 +22,6 @@ from LombScargle import psd, periodogram
 from hypothesis_testing.bayes_factor import logB
 from simulations.util import gauss_noise
 
-delta= 2.
 plot= 0
 
 
@@ -113,7 +112,7 @@ def real_lee3(params):
     time, data, mag_err, freq, redshift = load_data(id)
     PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
     results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
-                    temp_func= periodogram.randomized_period(key, 2000, delta), 
+                    temp_func= periodogram.randomized_period(key, 2000, concentration= 1.), 
                     plot_name= str(id) + '.png' if plot else None) 
 
     return save(id, results, base, log_prior_odds, len(data))

@@ -34,56 +34,37 @@ def basic(t, freq):
     return jnp.sin(2 * jnp.pi * freq * t), jnp.cos(2 * jnp.pi * freq * t)
 
 
-def drifting_freq(mode_spread):
-    """null template with drifting frequency"""
-    
-    def temp(time, freq):
-        tmin, tmax = jnp.min(time), jnp.max(time)
-        time_span = tmax-tmin
-        x = (time-tmin) / time_span
-        freq_drift = freq + (x - 0.5) * mode_spread / time_span
-        # frac = 0.05
-        #freq_drift = freq * jnp.power(1-frac, 1-x) * jnp.power(1+frac, x)
-        return basic(time, freq_drift)
-    
-    return temp
 
-
-# def randomized_period(key, num, delta):
-#     """null template with randomized period"""
-    
-#     periods = jnp.exp(jax.random.uniform(key, (num,), minval= jnp.log(1.-delta), maxval= jnp.log(1.+delta)))
-#     _grid = jnp.cumsum(periods)
-#     _grid_paddled = jnp.insert(_grid, 0, 0.)
-    
-#     def temp(_t, freq):
-#         t = _t - jnp.min(_t)
-#         grid = _grid
-#         grid_paddled = _grid_paddled
-#         which_period = jnp.searchsorted(grid, freq * t)
-#         x = (freq * t - grid_paddled[which_period]) / periods[which_period]
-#         return jnp.sin(2 * jnp.pi * x), jnp.cos(2 * jnp.pi * x)
-    
-#     return temp
-
-
-def randomized_period(key, num, delta):
+def randomized_period(key, num, concentration):
     """null template with randomized period"""
     
-    periods = jnp.exp(jax.random.normal(key, (num,)) * jnp.log(delta))
-    _grid = jnp.cumsum(periods)
-    _grid_paddled = jnp.insert(_grid, 0, 0.)
+    y = jax.random.gamma(key, concentration, (num, ))    
+        
     
+    def get_periods(freq, total_time):
+        """Convert the y to the periods of cycles.
+            cycles is a float = freq * total time"""
+        cycles= freq * total_time
+        cycles_frac, _cycles_integer = jnp.modf(cycles)
+        cycles_integer = _cycles_integer.astype(int)
+
+        weights = (jnp.arange(1, len(y)+1) <= cycles).astype(float)  
+        weights = weights.at[cycles_integer].set(cycles_frac)
+        return total_time * y / jnp.sum(y * weights)
+
+
     def temp(_t, freq):
         t = _t - jnp.min(_t)
-        grid = _grid
-        grid_paddled = _grid_paddled
-        which_period = jnp.searchsorted(grid, freq * t)
-        x = (freq * t - grid_paddled[which_period]) / periods[which_period]
+        periods = get_periods(freq, jnp.max(t)) 
+        grid = jnp.cumsum(periods)
+        grid_paddled = jnp.insert(grid, 0, 0.)
+        which_period = jnp.searchsorted(grid, t)
+        x = (t - grid_paddled[which_period]) / periods[which_period]
         return jnp.sin(2 * jnp.pi * x), jnp.cos(2 * jnp.pi * x)
     
     return temp
-    
+
+
 
 def remove_mean(uncentered_data, weight):
     """remove the data mean"""
