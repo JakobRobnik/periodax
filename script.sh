@@ -10,7 +10,7 @@
 
 # parameters of the script
 mode='real'
-temp=1
+temp=2
 whichamp=0
 #temp='randomized'
 
