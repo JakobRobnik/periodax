@@ -23,6 +23,7 @@ from hypothesis_testing.bayes_factor import logB
 from simulations.util import gauss_noise
 
 plot= 0
+amplitudes = [0.0, 0.1, 0.2, 0.3, 0.4]
 
 
 def noise(key, time, mag_err, generator_null):
@@ -57,26 +58,15 @@ def save(id, results, base,
     
     return True
 
-    
-# def sim(base, ids, amplitude, temp_func, keys, plot):
 
-#     def mainn(job_id):
-#         id, key = ids[job_id], keys[job_id]
-#         time, _, mag_err, freq = load_data(id, remove_outliers= False, average_within_night= True)
-#         PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
-        
-#         key1, key2, key3 = jax.random.split(key, 3)
-#         model, period_injected = signal(key2, time, PriorAlterantive.rvs)
-#         data = noise(key1, time, mag_err, PriorNull.rvs) + amplitude * model
-        
-#         results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
-#                       temp_func= temp_func(key3),
-#                       plot_name= str(job_id) + '.png' if plot else None)
-        
-#         save(id, results, base, log_prior_odds, len(data), period_injected= period_injected)
+
+def bernoulli_with_odds(key, log_odds, shape= None):
+    """odds = p / (1-p)
+        p= 1 / (1 + 1/odds) = 1 / (1 + exp(-log_odds)) = sigmoid(log_odds)
+    """
+    return jax.random.bernoulli(key, p= jax.nn.sigmoid(log_odds), shape= shape)
     
-#     return mainn
-    
+            
 # def injected(job_id):
 #     time, _, mag_err, freq, redshift = load_data(ids[job_id], remove_outliers= False, average_within_night= True)
 #     PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq[0], redshift)
@@ -104,6 +94,28 @@ def real(params):
     return save(id, results, base, log_prior_odds, len(data))
 
 
+def sim(params):
+    id, redshift, key, amp = params
+    amplitude = amplitudes[amp]
+    mode, temp = 'sim', 0
+    base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp) + '/'
+    time, _, mag_err, freq = load_data(id)
+    PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
+    
+    # simulate the data
+    key_noise, key_signal, key_inject = jax.random.split(key, 3)
+    inject = bernoulli_with_odds(key_inject, log_prior_odds) # True if signal is injected
+    model, period_injected = signal(key_signal, time, PriorAlterantive.rvs)
+    data = noise(key_noise, time, mag_err, PriorNull.rvs) + inject * amplitude * model
+    
+    
+    results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
+                    plot_name= None)
+    
+    save(id, results, base, log_prior_odds, len(data), period_injected= period_injected if inject else np.NAN)
+
+
+
 def real_lee3(params):
     id, redshift, key, temp, amp = params
 
@@ -128,17 +140,12 @@ if __name__ == "__main__":
     #  amp: amplitudes[amp] will be the amplitude of the injected signal. Should be 0, if no signal is to be injected.
 
     quasar_info = pd.read_csv(scratch_structure.dir_data + 'quasar_info.txt', delim_whitespace= True)
-    ids, redshifts = np.array(quasar_info['id']), np.array(quasar_info['redshift'])
-    
-    amplitudes = [0.0, 0.1, 0.2, 0.3, 0.4]
-   
+    ids, redshifts = np.array(quasar_info['id']), np.array(quasar_info['redshift'])   
     
     mode = sys.argv[3]
     temp = int(sys.argv[4])
     amp = int(sys.argv[5])
-    
-    amplitude = amplitudes[amp]
-        
+            
     
     start, finish = int(sys.argv[1]), int(sys.argv[2])
     finish = min(finish, len(ids))
