@@ -120,7 +120,6 @@ def load_data(id, remove_outliers= True, average_within_night= True):
     time = np.array(df['time'])
     mag = np.array(df['mag'])
     mag_err = np.array(df['mag_err'])
-    redshift = 0.
     
     # sort the data
     perm = np.argsort(time)
@@ -138,7 +137,7 @@ def load_data(id, remove_outliers= True, average_within_night= True):
     freq_bounds = jnp.array([2./T, 1./60.])
     freq = jnp.logspace(*jnp.log10(freq_bounds), 1000)
     
-    return time, mag, mag_err, freq, redshift
+    return time, mag, mag_err, freq
 
 
 

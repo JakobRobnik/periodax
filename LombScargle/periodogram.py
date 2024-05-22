@@ -38,7 +38,8 @@ def basic(t, freq):
 def randomized_period(key, num, concentration):
     """null template with randomized period"""
     
-    y = jax.random.gamma(key, concentration, (num, ))    
+    #y = jax.random.gamma(key, concentration, (num, ))    
+    y = jax.random.uniform(key, shape= (num, ), minval= 1., maxval= concentration)  
         
     
     def get_periods(freq, total_time):
@@ -72,6 +73,7 @@ def remove_mean(uncentered_data, weight):
     weighted_ones = weight(ones)
     avg = jnp.dot(uncentered_data, weighted_ones) / jnp.dot(ones, weighted_ones)
     return uncentered_data - avg, avg
+
 
     
 def compute2(time, uncentered_data, freq, weight, temp_func):
