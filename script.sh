@@ -9,10 +9,9 @@
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
 
 # parameters of the script
-mode='real'
+mode='sim'
 temp=0
-whichamp=0
-#temp='randomized'
+whichamp=2
 
 # load environment
 module load python

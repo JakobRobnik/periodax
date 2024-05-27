@@ -106,7 +106,7 @@ class Normal:
 
 def prepare(freq, redshift):    
     
-    alpha= 8./3. # power law exponent for the period prior
+    alpha = 8./3. # power law exponent for the period prior
     PriorAlterantive = SmoothenEdge(PowerLaw(-alpha - 2., freq[0]), 1.2)
     PriorNull = Normal()
     
@@ -114,6 +114,7 @@ def prepare(freq, redshift):
     period_cut = 500. # arbitrary constant to make prior odds on order one (doesn't matter for the test statistic)
     base_log_norm = jnp.log(jnp.power(period_cut, alpha + 1) / (alpha + 1.))
     log_prior_odds = (alpha + 1.) * jnp.log(1+redshift) + PriorAlterantive.log_norm - base_log_norm
-    
+    log_prior_odds -= 3.65642550207175 # adjustment to make prior odds for the entire catalog = 1, i.e. on average half of the quasars have signal (this shift is irrelevant for the posterior odds as a test statistic)
+
     return PriorAlterantive, PriorNull, log_prior_odds
-    
+
