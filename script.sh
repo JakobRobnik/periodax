@@ -7,10 +7,10 @@
 #SBATCH -t 02:00:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
-#SBATCH --array=0-2
+#SBATCH --array=4-9
 
 # parameters of the script
-mode='real'
+mode='sim'
 temp=$SLURM_ARRAY_TASK_ID
 whichamp=0
 

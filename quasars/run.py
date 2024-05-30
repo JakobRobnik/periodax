@@ -83,9 +83,9 @@ def real(params):
 
 
 def sim(params):
-    id, redshift, key, amp = params
+    id, redshift, key, temp, amp = params
     amplitude = amplitudes[amp]
-    mode, temp = 'sim', 0
+    mode = 'sim'
     base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp) + '/'
     time, _, mag_err, freq = load_data(id)
     PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     keys = jax.random.split(jax.random.key(42), 10 * len(ids)).reshape(10, len(ids))[temp][start:finish]  # if you change this, change also in analyze.ipynb
     
     if mode == 'sim':
-        params_transposed = [id, redshifts, keys, [amp, ] * len(id)]
+        params_transposed = [id, redshifts, keys, [temp, ] * len(id), [amp, ] * len(id)]
         params = [[row[i] for row in params_transposed] for i in range(len(id))]
         
         with mp.Pool(processes=num_cores) as pool:
