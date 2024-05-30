@@ -82,19 +82,6 @@ def real(params):
     return save(id, results, base, log_prior_odds, time)
 
 
-# def injected(params):
-#     id, redshift = params
-#     mode, temp, amp = 'real', 0, 0
-#     base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp) + '/'
-
-#     time, data, mag_err, freq = load_data(id)
-#     PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
-#     results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
-#                     plot_name= str(id) + '.png' if plot else None) 
-
-#     return save(id, results, base, log_prior_odds, time)
-
-
 def sim(params):
     id, redshift, key, amp = params
     amplitude = amplitudes[amp]
@@ -126,7 +113,7 @@ def real_lee3(params):
     time, data, mag_err, freq = load_data(id)
     PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
     results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
-                    temp_func= periodogram.randomized_period(key, 2000, concentration= 3.), 
+                    temp_func= periodogram.randomized_period(key, 2000, spread= 3.), 
                     plot_name= str(id) + '.png' if plot else None) 
 
     return save(id, results, base, log_prior_odds, time)

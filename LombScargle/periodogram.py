@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 
 
+
 def inverse2(A):
     """inverse of a 2x2 matrix"""
     
@@ -35,11 +36,13 @@ def basic(t, freq):
 
 
 
-def randomized_period(key, num, concentration):
-    """null template with randomized period"""
+def randomized_period(key, num, spread):
+    """null template with randomized period
+        num: the number of random periods to be generated. Should be larger than T / minimal period that will be later used with the template
+        spread = b/a"""
     
     #y = jax.random.gamma(key, concentration, (num, ))    
-    y = jax.random.uniform(key, shape= (num, ), minval= 1., maxval= concentration)  
+    y = jax.random.uniform(key, shape= (num, ), minval= 1., maxval= spread)  
         
     
     def get_periods(freq, total_time):
@@ -93,7 +96,7 @@ def compute2(time, uncentered_data, freq, weight, temp_func):
     
     overlap = jnp.array([jnp.dot(data, wtemp0), jnp.dot(data, wtemp1)])
     
-    score, opt_params = metric_to_score(overlap, inv_metric, amp)
+    score, opt_params = metric_to_score(overlap, inv_metric)
     
     return score, jnp.array([amp, *opt_params]) # we add the average to the optimal parameters
 
@@ -161,10 +164,21 @@ def zero_for_zero_freq(freq, output):
     
 
 def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= basic):
-    """sqrt_cov is the square root of a noise covariance matrix. It can be: 
-            None: periodogram will assume equal error, non-correlated noise
-            1d array: non-equal error, non-correlated noise. In this case sqrt_cov[i] is the error of data[i]
-            2d array: correlated noise, this is the square root of the covariance matrix, meaning that it is L in its Cholesky decomposition Cov = L L^T. It can be obtained e.g. by L = jnp.linalg.cholesky(Cov)
+    """Lomb-Scargle periodogram.
+        Args:
+            time: array of times where measurements are taken
+            data: array of measurements
+            floating_mean: weather the constant terms is also fitted (i.e. generalized periodogram). This is advised to be set to True.
+            sqrt_cov: square root of a noise covariance matrix. It can be: 
+                None: periodogram will assume equal error, non-correlated noise
+                1d array: non-equal error, non-correlated noise. In this case sqrt_cov[i] is the error of data[i]
+                2d array: correlated noise, this is the square root of the covariance matrix, meaning that it is L in its Cholesky decomposition Cov = L L^T. It can be obtained e.g. by L = jnp.linalg.cholesky(Cov)
+            temp_func: a function frequency -> ("sinus" template, "cosinus" template). Two options are already implemented:
+                temp_func = basic : the regular periodogram with sinus and cosinus templates
+                temp_func = randomized_period(key, num_periods, spread) : the modified periodogram, where period of each cycle is random. Used as an effective null simulation.
+                 
+        Returns:
+            a function: frequency -> (score, amplitudes)
     """
     
     weight_func = get_weight_func(sqrt_cov)
@@ -197,6 +211,4 @@ def loglik_null(uncentered_data, sqrt_cov):
     log_det = jnp.sum(jnp.log(2 * jnp.pi * jnp.square(jnp.diag(sqrt_cov))))
     return -0.5 * jnp.dot(data, weight_func(data)) -0.5 * log_det
     
-
-
-
+    

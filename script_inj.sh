@@ -4,14 +4,13 @@
 #SBATCH -C cpu
 #SBATCH -q regular
 #SBATCH -J quasars
-#SBATCH -t 02:00:00
+#SBATCH -t 00:10:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
-#SBATCH --array=0-2
 
 # parameters of the script
-mode='real'
-temp=$SLURM_ARRAY_TASK_ID
+mode='inj'
+temp=0
 whichamp=0
 
 # load environment
@@ -20,11 +19,5 @@ conda activate quasar
 
 # prepare the folder structure
 python3 -m quasars.scratch_structure start $mode $temp $whichamp
-for i in {0..8}
-do
-   start=$((i*3950))
-   finish=$((start+3950))
-   echo $start
-   python -m quasars.run $start $finish $mode $temp $whichamp
-done
+python -m quasars.run_inj $temp
 python3 -m quasars.scratch_structure finish $mode $temp $whichamp
