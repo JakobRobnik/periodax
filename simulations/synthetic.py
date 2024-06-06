@@ -12,16 +12,12 @@ from simulations.util import *
 plt.style.use('img/style.mplstyle')
 
 
-
-
-
 # Goals: testing LEE3 (single effective simulation out of every dataset) on different:
 #   - time samplings: equally-spaced, equally-spaced with masks, random, quasar times
 #   - data: white noise, correlated noise, cauchy
 #
 # We will here always take the periodogram score as a test statistic.
 #
-
 
 class Noise(NamedTuple):
     name: str
@@ -116,13 +112,13 @@ def main(time_name, noise_name):
         score, _ = jax.vmap(periodogram.lomb_scargle(time, data, floating_mean= True, temp_func= temp))(freq)
         return jnp.max(score)
     
-    num_sim = 2**12
+    num_sim = 2**13
     key = jax.random.PRNGKey(42)
     keys = jax.random.split(key, num_sim)
     
     # templates 
     basic = lambda rng_key: periodogram.basic
-    rand_temp = lambda rng_key: periodogram.randomized_period(rng_key, 2000, 1.)
+    rand_temp = lambda rng_key: periodogram.randomized_period(rng_key, 2000, 3.)
     
     sims= lambda keys, temp_func: jax.pmap(jax.vmap(lambda k: sim(k, temp_func)))(keys.reshape(cpus, num_sim//cpus, 2)).reshape(num_sim) # for cpu
     #sims = jax.vmap(sim, (0, None)) # for gpu
@@ -157,6 +153,8 @@ def plot():
         # truth 
         p, x, xmin, xmax = cdf_with_err(data[0])
         plt.plot(x, p, color = 'black', lw = 2)
+        plt.fill_betweenx(p, xmin, xmax, color = 'black', alpha= 0.3)
+
         
         # LEE3
         p, x, xmin, xmax = cdf_with_err(data[1])
@@ -176,7 +174,7 @@ def plot():
         counter += 1
     
     plt.tight_layout()
-    plt.savefig('img/synthetic/dirichlet_1.png')
+    plt.savefig('img/synthetic/uniform_3.png')
     plt.close()
     
     

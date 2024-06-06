@@ -4,10 +4,10 @@
 #SBATCH -C cpu
 #SBATCH -q regular
 #SBATCH -J quasars
-#SBATCH -t 02:00:00
+#SBATCH -t 01:30:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
-#SBATCH --array=4-9
+#SBATCH --array=0-9
 
 # parameters of the script
 mode='sim'
