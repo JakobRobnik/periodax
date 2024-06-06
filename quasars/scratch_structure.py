@@ -30,7 +30,7 @@ def start(base):
 def finish(base):
     
     join(dir_in= scratch + base + '/',
-         file_out= dir_results + base + '_2tau')
+         file_out= dir_results + base) + '_2tausim'
     
     
 def join(dir_in, file_out):
