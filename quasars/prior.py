@@ -97,11 +97,11 @@ class Normal:
     
     def __init__(self):
         mu = jnp.log(jnp.array([0.1, 120.]))
-        mu_sim = jnp.log(jnp.array([0.2, 240.]))
+        #mu_sim = jnp.log(jnp.array([0.2, 240.]))
         sigma = jnp.array([0.2, 0.9])
     
         self.nlogp = lambda y: jnp.sum(0.5 * jnp.square((y - mu)/sigma) + 0.5 * jnp.log(2 * jnp.pi * jnp.square(sigma)))    
-        self.rvs = lambda key: rand.normal(key, shape= (2,)) * sigma + mu_sim
+        self.rvs = lambda key: rand.normal(key, shape= (2,)) * sigma + mu # mu_sim
     
 
 

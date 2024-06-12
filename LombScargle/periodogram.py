@@ -31,20 +31,27 @@ def inverse3(A):
 
 
 def basic(t, freq):
-    """templates for the Lomb-Scargle periodogram"""
+    """Templates for the Lomb-Scargle periodogram (sine and cosine)."""
     return jnp.sin(2 * jnp.pi * freq * t), jnp.cos(2 * jnp.pi * freq * t)
 
 
 
-def randomized_period(key, num, spread):
-    """null template with randomized period
+def get_y(key, num, spread):
+    """Generates the periods for the null signal template. The first few periods are fixed (were optimized to minimize the overlap with the true template), the others are drawn from the uniform distribution."""
+    y_fixed = jnp.array([0.8635225711753599, 3.0004414364876055, 1.7112635323263894, 0.4661426878500358, 0.3608930521377926, 0.32117450191005287, 0.27656221811276294]) # their average should be 1
+    y_random = jax.random.uniform(key, shape= (num, ), minval= 1./jnp.sqrt(spread), maxval= jnp.sqrt(spread))
+    
+    return jnp.concatenate((y_fixed, y_random))
+
+
+def randomized_period(key, num, spread= 3.):
+    """Null signal template for the Lomb-Scargle periodogram.
         num: the number of random periods to be generated. Should be larger than T / minimal period that will be later used with the template
-        spread = b/a"""
+        spread: width of the period randomization distribution. We recomend using the default value.
+    """
     
-    #y = jax.random.gamma(key, concentration, (num, ))    
-    y = jax.random.uniform(key, shape= (num, ), minval= 1., maxval= spread)  
+    y = get_y(key, num, spread)
         
-    
     def get_periods(freq, total_time):
         """Convert the y to the periods of cycles.
             cycles is a float = freq * total time"""
