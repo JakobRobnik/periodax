@@ -3,12 +3,14 @@ import jax.numpy as jnp
 
 
 
+
 def inverse2(A):
     """inverse of a 2x2 matrix"""
     
     det = A[0, 0] * A[1, 1] - A[0, 1]**2
     return jnp.array([[A[1, 1], -A[0, 1]],
                       [-A[0, 1], A[0, 0]]]) / det
+
 
 
 def inverse3(A):
@@ -30,21 +32,30 @@ def inverse3(A):
                       [sub02, -sub12, sub22]]) / det
 
 
+
 def basic(t, freq):
-    """templates for the Lomb-Scargle periodogram"""
+    """Templates for the Lomb-Scargle periodogram (sine and cosine)."""
     return jnp.sin(2 * jnp.pi * freq * t), jnp.cos(2 * jnp.pi * freq * t)
 
 
 
-def randomized_period(key, num, spread):
-    """null template with randomized period
+def get_y(key, num, spread):
+    """Generates the periods for the null signal template. The first few periods are fixed (were optimized to minimize the overlap with the true template), the others are drawn from the uniform distribution."""
+    y_fixed = jnp.array([0.8635225711753599, 3.0004414364876055, 1.7112635323263894, 0.4661426878500358, 0.3608930521377926, 0.32117450191005287, 0.27656221811276294]) # their average should be 1
+    y_random = jax.random.uniform(key, shape= (num, ), minval= 1./jnp.sqrt(spread), maxval= jnp.sqrt(spread))
+    
+    return jnp.concatenate((y_fixed, y_random))
+
+
+
+def null_signal_template(key, num, spread= 3.):
+    """Null signal template for the Lomb-Scargle periodogram.
         num: the number of random periods to be generated. Should be larger than T / minimal period that will be later used with the template
-        spread = b/a"""
+        spread: width of the period randomization distribution. We recomend using the default value.
+    """
     
-    #y = jax.random.gamma(key, concentration, (num, ))    
-    y = jax.random.uniform(key, shape= (num, ), minval= 1., maxval= spread)  
+    y = get_y(key, num, spread)
         
-    
     def get_periods(freq, total_time):
         """Convert the y to the periods of cycles.
             cycles is a float = freq * total time"""
@@ -80,7 +91,7 @@ def remove_mean(uncentered_data, weight):
 
     
 def compute2(time, uncentered_data, freq, weight, temp_func):
-    """Lomb-Scargle periodogram"""
+    """Standard Lomb-Scargle periodogram"""
 
     data, amp = remove_mean(uncentered_data, weight)
 
@@ -101,8 +112,9 @@ def compute2(time, uncentered_data, freq, weight, temp_func):
     return score, jnp.array([amp, *opt_params]) # we add the average to the optimal parameters
 
 
+
 def compute3(time, uncentered_data, freq, weight, temp_func):
-    """floating mean Lomb-Scargle periodogram"""
+    """Floating mean Lomb-Scargle periodogram (recommended)"""
     
     data, amp = remove_mean(uncentered_data, weight)
     
@@ -140,6 +152,7 @@ def metric_to_score(overlap, inv_metric):
     return score, opt_parameters
 
 
+
 def get_weight_func(sqrt_cov):
     """noise weighting, computes Simga^-1 x """
     
@@ -149,6 +162,7 @@ def get_weight_func(sqrt_cov):
         return lambda x: x / jnp.square(sqrt_cov)
     else:
         return lambda x: jax.scipy.linalg.cho_solve((sqrt_cov, True), x)
+    
     
     
 def zero_for_zero_freq(freq, output):
@@ -162,21 +176,27 @@ def zero_for_zero_freq(freq, output):
     nonzero = jnp.abs(freq) > 1e-13
     return jax.tree_util.tree_map(lambda _output: nonzero* jnp.nan_to_num(_output), output)
     
+    
 
 def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= basic):
     """Lomb-Scargle periodogram.
         Args:
             time: array of times where measurements are taken
             data: array of measurements
-            floating_mean: weather the constant terms is also fitted (i.e. generalized periodogram). This is advised to be set to True.
-            sqrt_cov: square root of a noise covariance matrix. It can be: 
+            floating_mean: weather the (frequency dependent) constant is also fitted (i.e. generalized periodogram). This is recommended.
+            sqrt_cov: square root of the noise covariance matrix. It can be: 
                 None: periodogram will assume equal error, non-correlated noise
                 1d array: non-equal error, non-correlated noise. In this case sqrt_cov[i] is the error of data[i]
                 2d array: correlated noise, this is the square root of the covariance matrix, meaning that it is L in its Cholesky decomposition Cov = L L^T. It can be obtained e.g. by L = jnp.linalg.cholesky(Cov)
-            temp_func: a function frequency -> ("sinus" template, "cosinus" template). Two options are already implemented:
+            temp_func: a function frequency -> ("sinus" template, "cosinus" template). Two options are currently implemented (but custom functions with the same signature can also be used):
                 temp_func = basic : the regular periodogram with sinus and cosinus templates
-                temp_func = randomized_period(key, num_periods, spread) : the modified periodogram, where period of each cycle is random. Used as an effective null simulation.
-                 
+                temp_func = null_signal_template(key, num_periods) : the modified periodogram, where period of each cycle is random. Used as an effective null simulation.
+                
+                Note that templates which are not sinus and cosinus cannot be used straightforwardly, because the optimization over the phase cannot be done analytically then. 
+                One can however directly use models of the form  A_1 f_1(t, x) + A_2 f_2(t, x)
+                where x is an arbitrary non-linear parameter, simply by passing 
+                temp_func = lambda t, x: (f1(t, x), f2(t, x))
+                
         Returns:
             a function: frequency -> (score, amplitudes)
     """
@@ -191,6 +211,7 @@ def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= bas
         return lambda freq: zero_for_zero_freq(freq, compute2(time, data, freq, weight_func, temp_func))
 
 
+
 def fit(time, freq, amp, temp_func= basic):
     """Best fit model.
        Args:
@@ -203,6 +224,7 @@ def fit(time, freq, amp, temp_func= basic):
     return amp[0] + amp[1]*sin + amp[2]*cos    
 
 
+
 def loglik_null(uncentered_data, sqrt_cov):
     """log likelihood under the null hypothesis"""
     
@@ -210,5 +232,4 @@ def loglik_null(uncentered_data, sqrt_cov):
     data, _ = remove_mean(uncentered_data, weight_func)
     log_det = jnp.sum(jnp.log(2 * jnp.pi * jnp.square(jnp.diag(sqrt_cov))))
     return -0.5 * jnp.dot(data, weight_func(data)) -0.5 * log_det
-    
     
