@@ -3,7 +3,7 @@ from . import periodogram
 
 
 
-drw_kernel = lambda sigma, tau: lambda t1, t2: jnp.square(sigma) * jnp.exp(-jnp.abs(t2-t1) / tau) # damped random walk kernel
+kernel = lambda sigma, tau: lambda t1, t2: jnp.square(sigma) * jnp.exp(-jnp.abs(t2-t1) / tau) # damped random walk kernel
 
 
 def covariance(t, cov_func, errors):
@@ -26,7 +26,7 @@ def nlog_density(time, data, err, nlogpr_logfreq, nlogpr0, floating_mean= True, 
         freq, sigma, tau = jnp.exp(y)
         
         # covariance matrix
-        cov = covariance(time, drw_kernel(sigma, tau), err)
+        cov = covariance(time, kernel(sigma, tau), err)
         sqrt_cov = jnp.linalg.cholesky(cov)
         
         # likelihood ratio (at maximal amplitudes) = log p(x|freq, null_params) / p(x|null_params)
@@ -40,7 +40,7 @@ def nlog_density(time, data, err, nlogpr_logfreq, nlogpr0, floating_mean= True, 
     def nloglik0(y):
         """z = (sigma, tau)"""
         sigma, tau = jnp.exp(y)
-        cov = covariance(time, drw_kernel(sigma, tau), err)
+        cov = covariance(time, kernel(sigma, tau), err)
         sqrt_cov = jnp.linalg.cholesky(cov)
         return -periodogram.loglik_null(data, sqrt_cov)
     
@@ -56,7 +56,7 @@ def nlog_density(time, data, err, nlogpr_logfreq, nlogpr0, floating_mean= True, 
         freq, sigma, tau = jnp.exp(y)
         
         # covariance matrix
-        cov = covariance(time, drw_kernel(sigma, tau), err)
+        cov = covariance(time, kernel(sigma, tau), err)
         sqrt_cov = jnp.linalg.cholesky(cov)
         
         return periodogram.lomb_scargle(time, data, floating_mean= floating_mean, sqrt_cov= sqrt_cov, temp_func= temp_func)(freq)[1]
