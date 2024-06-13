@@ -19,11 +19,15 @@ plt.style.use('img/style.mplstyle')
 # We will here always take the periodogram score as a test statistic.
 #
 
+inject= False # weather to inject signal in the noise simulations
+name_inject = 'injected' if inject else 'null'
+
+
 class Noise(NamedTuple):
     name: str
     generator: Any # functions taking jax random key and time array and generating the data at these times
-
     
+
 def white_noise(key, time):
     return jax.random.normal(key, shape = time.shape)
 
@@ -95,19 +99,31 @@ def random_times():
 
 time_sampling = {'equal': equally_spaced_times(), 
                  'equalgaps': equally_spaced_gaps_times(), 
-                 'random': random_times(), 
-                 'quasar': quasar_times()}
+                 'random': random_times()} 
+                 #'quasar': quasar_times()}
 
 
 
-def main(time_name, noise_name):
+def get_signal(key, time, freq):
+    key1, key2 = jax.random.split(key)
+    phase = jax.random.uniform(key1) * 2 * jnp.pi
+    freq_injected = jax.random.choice(key2, freq)
+    return jnp.sin(2 * jnp.pi * freq_injected * time + phase)
+
+
+
+def main(time_name, noise_name, injected_chi2):
     
     time, freq = time_sampling[time_name].time, time_sampling[time_name].freq
-    get_data = noise[noise_name].generator
+    get_noise = noise[noise_name].generator
+    
     
     def sim(key, temp_func):
-        key_data, key_template = jax.random.split(key)
-        data = get_data(key_data, time)
+        key_noise, key_signal, key_template = jax.random.split(key, 3)
+        n = get_noise(key_noise, time)
+        s = get_signal(key_signal, time, freq)
+        s *= jnp.sqrt(injected_chi2 / jnp.sum(jnp.square(s)))
+        data = inject * s + n
         temp = temp_func(key_template)
         score, _ = jax.vmap(periodogram.lomb_scargle(time, data, floating_mean= True, temp_func= temp))(freq)
         return jnp.max(score)
@@ -117,64 +133,89 @@ def main(time_name, noise_name):
     keys = jax.random.split(key, num_sim)
     
     # templates 
-    basic = lambda rng_key: periodogram.basic
-    rand_temp = lambda rng_key: periodogram.randomized_period(rng_key, 2000, 3.)
+    true_temp = lambda rng_key: periodogram.basic
+    null_temp = lambda rng_key: periodogram.null_signal_template(rng_key, 2000)
     
     sims= lambda keys, temp_func: jax.pmap(jax.vmap(lambda k: sim(k, temp_func)))(keys.reshape(cpus, num_sim//cpus, 2)).reshape(num_sim) # for cpu
     #sims = jax.vmap(sim, (0, None)) # for gpu
                    
     # true simulations
-    score = sims(keys, basic)
+    score_true = sims(keys, true_temp)
 
-    # LEE3 simulations
-    score_lee3 = sims(keys, rand_temp)
+    # NST simulations
+    score_nst = sims(keys, null_temp)
     
-    jnp.save('data/synthetic/' + time_name + noise_name + '.npy', [score, score_lee3])
+    jnp.save('data/synthetic/' + name_inject + '/'+ time_name + noise_name + '.npy', [score_true, score_nst])
 
     
 def mainn():
+    
+    amp = [15, 7e7, 700,
+           10, 3e7, 300,
+           10, 7e7, 600,
+           4, 5e6, 60,
+        ]
+    count = 0
+    
     # iterate over all combinations of time sampling and noise
     for name in itertools.product(time_sampling.keys(), noise.keys()):
-       print(*name)
-       main(*name)
+       print(*name, amp[count])
+       main(*name, amp[count])
+       count += 1
        
 
 def plot():
     
     num_x, num_y = len(time_sampling), len(noise)
-    plt.figure(figsize= (num_x * 5, num_y * 3))
+
+    plt.rcParams['xtick.labelsize'] = 15
+    plt.rcParams['ytick.labelsize'] = 15
+    plt.rcParams['font.size'] = 15
+    
+    plt.figure(figsize= (num_x * 7, num_y * 4))
     counter = 0
+    cut = 5
     for (noise_name, time_name) in itertools.product(noise.keys(), time_sampling.keys()):
         plt.subplot(num_y, num_x, counter + 1)
         
-        data = jnp.load('data/synthetic/' + time_name + noise_name + '.npy')
-        plt.title(time_sampling[time_name].name + ' ' + noise[noise_name].name + ' noise')
+        plt.title(time_sampling[time_name].name + ' ' + noise[noise_name].name + ' noise', fontsize= 18, y = 1.05)
         
         # truth 
+        data = jnp.load('data/synthetic/null/' + time_name + noise_name + '.npy')
         p, x, xmin, xmax = cdf_with_err(data[0])
-        plt.plot(x, p, color = 'black', lw = 2)
-        plt.fill_betweenx(p, xmin, xmax, color = 'black', alpha= 0.3)
-
+        plt.plot(x[cut:], p[cut:], color = 'black', lw = 2)
+        plt.fill_betweenx(p[cut:], xmin[cut:], xmax[cut:], color = 'black', alpha= 0.3)
         
-        # LEE3
+        
+        data = jnp.load('data/synthetic/' + name_inject + '/' + time_name + noise_name + '.npy')
+        # NST
         p, x, xmin, xmax = cdf_with_err(data[1])
         color = plt.cm.inferno(0.05 + (counter + 0.5) / (num_x * num_y) * 0.9)
-        plt.plot(x, p, color = color, lw = 2)
-        plt.fill_betweenx(p, xmin, xmax, color = color, alpha= 0.3)
+        if inject:
+            color= 'teal'
+        plt.plot(x[cut:], p[cut:], color = color, lw = 2)
+        plt.fill_betweenx(p[cut:], xmin[cut:], xmax[cut:], color = color, alpha= 0.3)
+        
+        if inject: # real template on injected data
+            p, x, xmin, xmax = cdf_with_err(data[0])
+            color = 'chocolate'
+            plt.plot(x[cut:], p[cut:], color = color, lw = 2)
+            plt.fill_betweenx(p[cut:], xmin[cut:], xmax[cut:], color = color, alpha= 0.3)
+                
         
         plt.yscale('log')
-        ylim_only(x, p, 5e-5, 1.1)
+        ylim_only(x[cut:], p[cut:], 5e-4, 1.1)
         
         if counter // num_x == num_y -1:
-            plt.xlabel('q(x)')
+            plt.xlabel(r'$q_{LS}(X)$')
         
         if counter % num_x == 0:
-            plt.ylabel('P(q > q(x))')
+            plt.ylabel(r'$P(q_{LS} > q_{LS}(x))$')
         
         counter += 1
     
     plt.tight_layout()
-    plt.savefig('img/synthetic/uniform_3.png')
+    plt.savefig('img/synthetic/'+name_inject+'.png')
     plt.close()
     
     
@@ -196,5 +237,5 @@ def show_times():
 
 if __name__ == '__main__':
     # show_times()
-    mainn()
+    #mainn()
     plot()

@@ -10,7 +10,7 @@
 
 # parameters of the script
 mode='inj'
-temp=0
+temp=1 # to produce plot, run with 0 and with 1
 whichamp=0
 
 # load environment

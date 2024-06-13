@@ -23,7 +23,7 @@ from hypothesis_testing.bayes_factor import logB
 from simulations.util import gauss_noise
 
 plot= 0
-amplitudes = [0.0, 0.1, 0.2, 0.3, 0.4]
+amplitudes = [0.0, 0.08, 0.2, 0.3, 0.4]
 
 
 def noise(key, time, mag_err, generator_null):
@@ -82,11 +82,27 @@ def real(params):
     return save(id, results, base, log_prior_odds, time)
 
 
-def sim(params):
+def real_nst(params):
     id, redshift, key, temp, amp = params
+
+    mode = 'real'
+    base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp) + '/'
+
+    time, data, mag_err, freq = load_data(id)
+    PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
+    
+    results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
+                    temp_func= periodogram.null_signal_template(key, 2000), 
+                    plot_name= str(id) + '.png' if plot else None) 
+
+    return save(id, results, base, log_prior_odds, time)
+
+
+def sim(params):
+    id, redshift, key, key_num, amp = params
     amplitude = amplitudes[amp]
     mode = 'sim'
-    base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp) + '/'
+    base = scratch_structure.scratch + scratch_structure.base_name(mode, key_num, amp) + '/'
     time, _, mag_err, freq = load_data(id)
     PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
     
@@ -103,21 +119,26 @@ def sim(params):
     save(id, results, base, log_prior_odds, time, period_injected= period_injected if inject else np.NAN)
 
 
-
-def real_lee3(params):
-    id, redshift, key, temp, amp = params
-
-    mode = 'real'
-    base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp) + '/'
-
-    time, data, mag_err, freq = load_data(id)
+def sim_nst(params):
+    id, redshift, key, key_num, amp = params
+    amplitude = amplitudes[amp]
+    mode = 'sim'
+    base = scratch_structure.scratch + scratch_structure.base_name(mode, key_num, amp) + '/'
+    time, _, mag_err, freq = load_data(id)
     PriorAlterantive, PriorNull, log_prior_odds = prior.prepare(freq, redshift)
+    
+    # simulate the data
+    key_noise, key_signal, key_inject, key_nst = jax.random.split(key, 4)
+    inject = bernoulli_with_odds(key_inject, log_prior_odds) # True if signal is injected
+    model, period_injected = signal(key_signal, time, PriorAlterantive.rvs)
+    data = noise(key_noise, time, mag_err, PriorNull.rvs) + inject * amplitude * model
+    
+    
     results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
-                    temp_func= periodogram.randomized_period(key, 2000, spread= 3.), 
-                    plot_name= str(id) + '.png' if plot else None) 
-
-    return save(id, results, base, log_prior_odds, time)
-
+                    temp_func= periodogram.null_signal_template(key_nst, 2000), 
+                    plot_name= None)
+    
+    save(id, results, base, log_prior_odds, time, period_injected= period_injected if inject else np.NAN)
 
 
 if __name__ == "__main__":
@@ -131,9 +152,13 @@ if __name__ == "__main__":
     ids, redshifts = np.array(quasar_info['id']), np.array(quasar_info['redshift'])   
     
     mode = sys.argv[3]
-    temp = int(sys.argv[4])
+    key_num = int(sys.argv[4])
     amp = int(sys.argv[5])
             
+    if key_num >= 1000: # key numbers above 1000 represent null template
+        nst, subtract = True, 1000
+    else:
+        nst, subtract = False, 0
     
     start, finish = int(sys.argv[1]), int(sys.argv[2])
     finish = min(finish, len(ids))
@@ -145,20 +170,26 @@ if __name__ == "__main__":
     
     
     id = ids[start:finish]
-    keys = jax.random.split(jax.random.key(42), 10 * len(ids)).reshape(10, len(ids))[temp][start:finish]  # if you change this, change also in analyze.ipynb
+    keys = jax.random.split(jax.random.key(42), 10 * len(ids)).reshape(10, len(ids))[key_num-subtract][start:finish]  # if you change this, change also in analyze.ipynb
     
-    if mode == 'sim':
-        params_transposed = [id, redshifts, keys, [temp, ] * len(id), [amp, ] * len(id)]
+    if mode == 'sim': # simulations
+        params_transposed = [id, redshifts, keys, [key_num, ] * len(id), [amp, ] * len(id)]
         params = [[row[i] for row in params_transposed] for i in range(len(id))]
         
-        with mp.Pool(processes=num_cores) as pool:
-            results = pool.imap_unordered(sim, params)
+        if not nst: # real template
+            with mp.Pool(processes=num_cores) as pool:
+                results = pool.imap_unordered(sim, params)
 
-            for result in results: #useless, but otherwise multiprocessing doesn't think it is neccessary to actually run the previous line
-                None
-    
-    else:
-        if temp == 0:
+                for result in results: #useless, but otherwise multiprocessing doesn't think it is neccessary to actually run the previous line
+                    None 
+        else: # nst template
+            with mp.Pool(processes=num_cores) as pool:
+                results = pool.imap_unordered(sim_nst, params)
+
+                for result in results: #useless, but otherwise multiprocessing doesn't think it is neccessary to actually run the previous line
+                    None
+    else: # real data 
+        if not nst: # real template
             
             params_transposed = [id, redshifts]
             params = [[row[i] for row in params_transposed] for i in range(len(id))]
@@ -170,12 +201,12 @@ if __name__ == "__main__":
                     None
         
         
-        else:
-            params_transposed = [id, redshifts, keys, [temp, ] * len(id), [amp, ] * len(id)]
+        else: # nst template
+            params_transposed = [id, redshifts, keys, [key_num, ] * len(id), [amp, ] * len(id)]
             params = [[row[i] for row in params_transposed] for i in range(len(id))]
             
             with mp.Pool(processes=num_cores) as pool:
-                results = pool.imap_unordered(real_lee3, params)
+                results = pool.imap_unordered(real_nst, params)
 
                 for result in results: #useless, but otherwise multiprocessing doesn't think it is neccessary to actually run the previous line
                     None        

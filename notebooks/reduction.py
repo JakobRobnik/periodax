@@ -20,14 +20,13 @@ def _main(key, cycles, spread):
     freq = jnp.logspace(-c, c, 1000)
     
     # scan with the modified template
-    temp = periodogram.randomized_period(key, (int)(cycles * 2), spread)
+    temp = periodogram.null_signal_template(key, (int)(cycles * 2), spread)
     periodogram_modified = periodogram.lomb_scargle(time, data, floating_mean= False, temp_func= temp)
     score_modified = jnp.max(jax.vmap(periodogram_modified)(freq)[0])
 
     score_og = periodogram.lomb_scargle(time, data, floating_mean= False)(1.)[0]
     
     return score_modified / score_og
-
 
 
 

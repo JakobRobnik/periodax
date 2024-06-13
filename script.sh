@@ -4,15 +4,15 @@
 #SBATCH -C cpu
 #SBATCH -q regular
 #SBATCH -J quasars
-#SBATCH -t 01:30:00
+#SBATCH -t 01:45:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
-#SBATCH --array=0-9
 
-# parameters of the script
+# parameters of the script #S-B-ATCH --array=0-9
+
 mode='sim'
-temp=$SLURM_ARRAY_TASK_ID
-whichamp=0
+temp=0 #$SLURM_ARRAY_TASK_ID 
+whichamp=1
 
 # load environment
 module load python

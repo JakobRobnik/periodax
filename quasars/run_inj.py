@@ -65,7 +65,7 @@ def injected(params):
     return save(id, results, base, log_prior_odds, time)
 
 
-def injected_lee3(params):
+def injected_nst(params):
     id, redshift, key, temp, period, A_const, A_sin, A_cos = params
     mode, temp, amp = 'inj', temp, 0
     base = scratch_structure.scratch + scratch_structure.base_name(mode, temp, amp) + '/'
@@ -75,10 +75,11 @@ def injected_lee3(params):
     data += signal(time, period, A_const, A_sin, A_cos)
     
     results= logB(time, data, mag_err, freq, PriorAlterantive.nlogp, PriorNull.nlogp, 
-                    temp_func= periodogram.randomized_period(key, 2000, concentration= 3.), 
+                    temp_func= periodogram.null_signal_template(key, 2000), 
                     plot_name= str(id) + '.png' if plot else None) 
 
     return save(id, results, base, log_prior_odds, time)
+
 
 if __name__ == "__main__":
 
@@ -97,7 +98,7 @@ if __name__ == "__main__":
     t1 = tt()
     
     
-    keys = jax.random.split(jax.random.key(42), len(id))
+    keys = jax.random.split(jax.random.key(0), len(id))
     
     params_transposed = [id, redshift, keys, [temp, ] * len(id), period, A_const, A_sin, A_cos]
     params = [[row[i] for row in params_transposed] for i in range(len(id))]
@@ -110,7 +111,7 @@ if __name__ == "__main__":
                 None        
     else:
         with mp.Pool(processes=num_cores) as pool:
-            results = pool.imap_unordered(injected_lee3, params)
+            results = pool.imap_unordered(injected_nst, params)
 
             for result in results: #useless, but otherwise multiprocessing doesn't think it is neccessary to actually run the previous line
                 None        
