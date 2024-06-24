@@ -155,7 +155,7 @@ if __name__ == "__main__":
     key_num = int(sys.argv[4])
     amp = int(sys.argv[5])
             
-    if key_num >= 1000: # key numbers above 1000 represent null template
+    if key_num >= 1000: # key numbers above (and including) 1000 represent null template
         nst, subtract = True, 1000
     else:
         nst, subtract = False, 0

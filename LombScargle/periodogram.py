@@ -56,6 +56,9 @@ def null_signal_template(key, num, spread= 3.):
     
     y = get_y(key, num, spread)
         
+    # alpha = 0.2
+    # y = y * alpha + (1-alpha)
+        
     def get_periods(freq, total_time):
         """Convert the y to the periods of cycles.
             cycles is a float = freq * total time"""

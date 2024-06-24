@@ -10,9 +10,9 @@
 
 # parameters of the script #S-B-ATCH --array=0-9
 
-mode='sim'
-temp=0 #$SLURM_ARRAY_TASK_ID 
-whichamp=1
+mode='real'
+temp=1000 #$SLURM_ARRAY_TASK_ID 
+whichamp=0
 
 # load environment
 module load python
