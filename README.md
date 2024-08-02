@@ -9,4 +9,5 @@ Example Application:
 Reanalysis of Supermassive Black Hole Binaries search from [here](https://academic.oup.com/mnras/article/463/2/2145/2589684) is on the 'quasars' branch.
 
 To get started, checkout the [tutorial](tutorial.ipynb). See also the [associated paper](https://arxiv.org/abs/2407.17565).
+
 If you encounter any issues, feel free to contact me at jakob_robnik@berkeley.edu .
