@@ -7,11 +7,12 @@
 #SBATCH -t 01:45:00
 #SBATCH --mail-type=end,fail
 #SBATCH --mail-user=jakob_robnik@berkeley.edu
+#SBATCH --array=81-99
 
-# parameters of the script #S-B-ATCH --array=0-9
+# parameters of the script 
 
-mode='real'
-temp=1000 #$SLURM_ARRAY_TASK_ID 
+mode='sim'
+temp=$SLURM_ARRAY_TASK_ID 
 whichamp=0
 
 # load environment

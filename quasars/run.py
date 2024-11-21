@@ -170,7 +170,8 @@ if __name__ == "__main__":
     
     
     id = ids[start:finish]
-    keys = jax.random.split(jax.random.key(42), 10 * len(ids)).reshape(10, len(ids))[key_num-subtract][start:finish]  # if you change this, change also in analyze.ipynb
+    keys = jax.random.split(jax.random.key(42), 100 * len(ids)).reshape(100, len(ids))[key_num-subtract][start:finish]  #for drw simulations
+    #keys = jax.random.split(jax.random.key(42), 10 * len(ids)).reshape(10, len(ids))[key_num-subtract][start:finish]  # if you change this, change also in analyze.ipynb
     
     if mode == 'sim': # simulations
         params_transposed = [id, redshifts, keys, [key_num, ] * len(id), [amp, ] * len(id)]
