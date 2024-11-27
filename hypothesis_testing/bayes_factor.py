@@ -4,7 +4,7 @@ from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from typing import NamedTuple, Any
 
-from . import quad, visualization
+from . import quad
 from ..LombScargle import periodogram, psd
 
 scheme_d2 = quad.get_scheme(2, 6)
