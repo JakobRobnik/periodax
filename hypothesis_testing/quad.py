@@ -21,7 +21,7 @@ def integrate(vals, w, d):
 def get_scheme(d, order):
     """Downloads good integration schemes."""
     
-    dir = os.path.dirname(os.path.realpath(__file__)) + '/quad_schemes/d'+str(d)+'/'
+    dirr = os.path.dirname(os.path.realpath(__file__)) + '/quad_schemes/d'+str(d)+'/'
     
     x = jnp.load(dirr + 'points'+str(order)+'.npy').T
     w = jnp.load(dirr + 'weights'+str(order)+'.npy')
