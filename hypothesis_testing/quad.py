@@ -5,7 +5,7 @@
 
 import jax
 import jax.numpy as jnp
-
+import os
 
 def integrate(vals, w, d):
     """Approximates the integral I = int e^{-x^2} f(x) dx for a d dimensional (typically d = 2 or 3) x by a quadrature:
