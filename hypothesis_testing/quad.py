@@ -5,7 +5,7 @@
 
 import jax
 import jax.numpy as jnp
-
+import os
 
 def integrate(vals, w, d):
     """Approximates the integral I = int e^{-x^2} f(x) dx for a d dimensional (typically d = 2 or 3) x by a quadrature:
@@ -21,7 +21,8 @@ def integrate(vals, w, d):
 def get_scheme(d, order):
     """Downloads good integration schemes."""
     
-    dirr = 'hypothesis_testing/quad_schemes/d'+str(d)+'/'
+    dir = os.path.dirname(os.path.realpath(__file__)) + '/quad_schemes/d'+str(d)+'/'
+    
     x = jnp.load(dirr + 'points'+str(order)+'.npy').T
     w = jnp.load(dirr + 'weights'+str(order)+'.npy')
     
