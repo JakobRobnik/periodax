@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from typing import NamedTuple, Any
 
 from . import quad, visualization
-from LombScargle import periodogram, psd
+from ..LombScargle import periodogram, psd
 
 scheme_d2 = quad.get_scheme(2, 6)
 scheme_d3 = quad.get_scheme(3, 7)
