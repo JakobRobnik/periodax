@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from LombScargle import periodogram
+from . import periodogram
 
 
 
