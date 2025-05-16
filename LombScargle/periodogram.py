@@ -294,11 +294,9 @@ def fit_bands(time, freq, amp, band_mask, temp_func= basic):
 
 
 
-def loglik_null(uncentered_data, sqrt_cov):
+def determinant_term(sqrt_cov):
     """log likelihood under the null hypothesis"""
     
-    weight_func = get_weight_func(sqrt_cov)
-    data, _ = remove_mean(uncentered_data, weight_func)
     log_det = jnp.sum(jnp.log(2 * jnp.pi * jnp.square(jnp.diag(sqrt_cov))))
-    return -0.5 * jnp.dot(data, weight_func(data)) -0.5 * log_det
+    return -0.5 * log_det
     

@@ -19,6 +19,8 @@ def multiband_covariance(t, cov_func, errors, drw_amp, sizes):
     A = jnp.block([[jnp.ones(shape= (sizes[i], sizes[j])) * drw_amp[i] * drw_amp[j] for j in range(len(sizes))] for i in range(len(sizes))])
     return _cov * A
 
+
+
 def nlog_density(time, data, err, nlogpr_logfreq, nlogpr0, floating_mean= True, temp_func= periodogram.basic):
     """y = log z"""
     
@@ -68,3 +70,4 @@ def nlog_density(time, data, err, nlogpr_logfreq, nlogpr0, floating_mean= True, 
         
         
     return nlogpost0, nlogpost1, nloglik0, nloglik1, get_amp
+

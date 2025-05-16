@@ -48,7 +48,7 @@ def plot_lc():
 
     # get the fit (taking the ground truth period)
     ls = periodogram.lomb_scargle(time, data, sqrt_cov= jnp.linalg.cholesky(cov), temp_func= periodogram.basic, band_mask= band_mask)
-    _, amps = ls()
+    _, amps = ls(1./period_true)
     T = jnp.tile(jnp.linspace(0, 10, 100), 3)
     o, z = jnp.ones(100), jnp.zeros(100)
     _mask = jnp.block([[o, z, z], [z, o, z], [z, z, o]])
@@ -78,9 +78,11 @@ def plot_lc():
     ls = periodogram.lomb_scargle(time, data, sqrt_cov= jnp.linalg.cholesky(cov), temp_func= periodogram.basic, band_mask= band_mask)
     scores, _ = jax.vmap(ls)(freq)
 
-    plt.title('Periodogram score', fontweight = 'bold')
 
     plt.subplot(len(band_mask) + 1, 1, len(band_mask) + 1)
+
+    plt.title('Periodogram', fontweight = 'bold')
+
     plt.plot(1./freq, scores, '.', color = 'teal')
     plt.axvline(period_true, ls='--', alpha = 0.5, color= 'black')
     plt.xlabel('period')
