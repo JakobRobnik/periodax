@@ -33,6 +33,7 @@ def inverse3(A):
 
 
 
+
 def basic(t, freq):
     """Templates for the Lomb-Scargle periodogram (sine and cosine)."""
     return jnp.sin(2 * jnp.pi * freq * t), jnp.cos(2 * jnp.pi * freq * t)
@@ -84,9 +85,9 @@ def null_signal_template(key, num, spread= 3.):
 
 
 
-def remove_mean(uncentered_data, weight):
+def remove_mean(uncentered_data, weight, mask_band= 1.):
     """remove the data mean"""
-    ones = jnp.ones(uncentered_data.shape)
+    ones = jnp.ones(uncentered_data.shape) * mask_band.astype(int)
     weighted_ones = weight(ones)
     avg = jnp.dot(uncentered_data, weighted_ones) / jnp.dot(ones, weighted_ones)
     return uncentered_data - avg, avg
@@ -147,11 +148,56 @@ def compute3(time, uncentered_data, freq, weight, temp_func):
     return score, opt_params + shift
 
 
+
+def get_templates(time, freq, temp_func, band_mask):
+
+    const = jnp.ones(time.shape)
+    sin, cos = temp_func(time, freq)
+    templates = jnp.array([const, sin, cos]) # shape = (3, len(time))
+    # band_mask.shape = (# bands, len(time))
     
+    # this has shape (# templates, len(time)):
+    templates = (band_mask.T[:, :, None] * templates.T[:, None, :]).reshape(len(time), 3 * len(band_mask)).T # multiply by the band mask to get templates for each band
+    
+    return templates
+
+
+def compute_n(time, data, freq, weight, temp_func, band_mask):
+    """Floating mean Lomb-Scargle periodogram for multiple bands"""
+    
+    # remove the mean (in each band separately), for stability
+    # mean = jax.vmap(remove_mean, (None, None, 0))(uncentered_data, weight, band_mask)[1]
+    # mean_lc = jnp.sum(mean[:, None] * band_mask, axis = 0)
+    # data = uncentered_data - mean_lc
+    
+    templates = get_templates(time, freq, temp_func, band_mask)
+
+    weighted_templates = jax.vmap(weight)(templates)
+
+    metric = templates @ weighted_templates.T #shape = (# templates, # templates)
+    sqrt_metric = jnp.linalg.cholesky(metric)
+
+    overlap = weighted_templates @ data
+
+    score, opt_params = metric_to_score_for_large_metric(overlap, sqrt_metric)
+    #shift= jnp.array([mean, jnp.zeros(mean.shape), jnp.zeros(mean.shape)]).T.reshape(3 * len(band_mask)) # we have taken the average out, let's add it back
+    
+    return score, opt_params #+ shift
+
+
+
 def metric_to_score(overlap, inv_metric):
     """given the template metric compute the periodogram score and the optimal linear parameters"""
-    score = overlap.T @ inv_metric @ overlap
     opt_parameters = inv_metric @ overlap
+    score = overlap.T @ opt_parameters
+    return score, opt_parameters
+
+
+
+def metric_to_score_for_large_metric(overlap, sqrt_metric):
+    """given the template metric compute the periodogram score and the optimal linear parameters"""
+    opt_parameters = jax.scipy.linalg.cho_solve((sqrt_metric, True), overlap)
+    score = overlap.T @ opt_parameters
     return score, opt_parameters
 
 
@@ -179,9 +225,19 @@ def zero_for_zero_freq(freq, output):
     nonzero = jnp.abs(freq) > 1e-13
     return jax.tree_util.tree_map(lambda _output: nonzero* jnp.nan_to_num(_output), output)
     
-    
 
-def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= basic):
+def band_mask(times):
+
+    # get the mask
+    data_points_in_band = jnp.array([len(t) for t in times]).astype(int)
+    borders = jnp.insert(jnp.cumsum(data_points_in_band), 0, 0)
+    n = jnp.arange(borders[-1])
+    mask = jnp.array([(n >= borders[i]) & (n < borders[i+1]) for i in range(len(borders)-1)])
+
+    return mask
+
+
+def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= basic, band_mask= None):
     """Lomb-Scargle periodogram.
         Args:
             time: array of times where measurements are taken
@@ -200,6 +256,11 @@ def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= bas
                 where x is an arbitrary non-linear parameter, simply by passing 
                 temp_func = lambda t, x: (f1(t, x), f2(t, x))
                 
+            multibands: 
+                If observations consist of multiple bands, time and data should be concatenated flat arrays, such that, e.g.
+                time = np.concatenate([times_band1, times_band2, ...])
+                multibands should then be the lengths: multibands = [len(times_band1), len(times_band2), ...]
+
         Returns:
             a function: frequency -> (score, amplitudes)
     """
@@ -207,6 +268,10 @@ def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= bas
     weight_func = get_weight_func(sqrt_cov)
     
     ### periodogram computation
+    
+    if band_mask is not None:
+        return lambda freq: zero_for_zero_freq(freq, compute_n(time, data, freq, weight_func, temp_func, band_mask))
+
     if floating_mean:
         return lambda freq: zero_for_zero_freq(freq, compute3(time, data, freq, weight_func, temp_func))
 
@@ -215,7 +280,7 @@ def lomb_scargle(time, data, floating_mean= True, sqrt_cov= None, temp_func= bas
 
 
 
-def fit(time, freq, amp, temp_func= basic):
+def fit_bands(time, freq, amp, band_mask, temp_func= basic):
     """Best fit model.
        Args:
             freq: frequency of the signal
@@ -223,8 +288,9 @@ def fit(time, freq, amp, temp_func= basic):
        Returns:
             time series of shape time.shape
     """
-    sin, cos = temp_func(time, freq)
-    return amp[0] + amp[1]*sin + amp[2]*cos    
+
+    templates= get_templates(time, freq, temp_func, band_mask)
+    return templates.T @ amp
 
 
 
