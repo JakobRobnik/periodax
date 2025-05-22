@@ -40,8 +40,8 @@ signal =  jnp.sin(2 * jnp.pi * time / period_true) * jnp.sum(band_mask * jnp.arr
 data += signal
 
 # make different bands have different magnitudes
-shift = jnp.sum(band_mask * jnp.array([10., 20., 5.])[:, None], axis = 0)
-data += shift
+# shift = jnp.sum(band_mask * jnp.array([10., 20., 5.])[:, None], axis = 0)
+# data += shift
 
 
 def plot_lc():
@@ -96,4 +96,47 @@ def plot_lc():
 
 
 
-plot_lc()
+#plot_lc()
+
+
+
+
+# how to do likelihood:
+
+#from hypothesis_testing.bayes_factor import likelihood_ratio
+from scipy.optimize import minimize
+
+def likelihood_ratio(time, data, errors, band_mask, init_null, freq_grid, temp_func = periodogram.basic):
+
+
+    nlogp1, nlogp0 = psd.nlog_density(time, data, errors, band_mask, temp_func= temp_func) # get the likelihoods
+
+
+    ### optimize the null model ###
+    opt_null = minimize(jax.value_and_grad(nlogp0), x0 = init_null, method= 'BFGS', jac= True, options= {'maxiter': 50})
+    print(opt_null)
+    print(jnp.exp(opt_null.x))
+
+    ### optimize the signal model ###
+    # find the initial guess with periodogram
+    sizes = jnp.sum(band_mask, axis= 1).astype(int)
+    sqrt_cov = psd.sqrt_multiband_drw_covariance(time, errors, jnp.exp(opt_null.x), sizes)
+    score, _ = jax.vmap(periodogram.lomb_scargle(time, data, sqrt_cov = sqrt_cov, band_mask= band_mask, temp_func= temp_func))(freq_grid)
+    init_freq = freq_grid[jnp.argmax(score)]
+    print(init_freq)
+
+    # optimize
+    init_signal = jnp.insert(opt_null.x, 0, jnp.log(init_freq)) # initial condition
+    opt_signal = minimize(jax.value_and_grad(nlogp1), x0 = init_signal, method= 'BFGS', jac= True, options= {'maxiter': 50})
+
+    print(opt_signal)
+    print(jnp.exp(opt_signal.x))
+
+    return opt_null.fun - opt_signal.fun
+
+freq_grid = jnp.linspace(0.2, 5, 1000) # change this in real problems
+init_null = jnp.log(jnp.array([1., 3., 0.5, 3.])) # initial condition (change this)
+
+chi2 = likelihood_ratio(time, data, errors, band_mask, init_null, freq_grid, temp_func= periodogram.basic)
+
+print(chi2)

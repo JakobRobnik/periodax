@@ -34,8 +34,9 @@ def optimize(nlogp, init):
 
 
 
+
 def quadrature(nlogp, MAP, quad_scheme):
-    """ 3d Gaussian quadrature integration for the Bayesian evidence. We want to evaluate 
+    """3d Gaussian quadrature integration for the Bayesian evidence. We want to evaluate 
             Z = \int p(z | data) dz = \int e^{-nlogp(z | data)} dz
         The Gaussian quadrature is based on the Laplace approximation of the Hessian around MAP.
 

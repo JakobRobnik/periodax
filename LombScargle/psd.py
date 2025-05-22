@@ -20,54 +20,50 @@ def multiband_covariance(t, cov_func, errors, drw_amp, sizes):
     return _cov * A
 
 
+def sqrt_multiband_drw_covariance(time, errors, params, sizes):
+    *sigmas, tau = params
+    cov = multiband_covariance(time, drw_kernel(1., tau), errors, drw_amp= sigmas, sizes= sizes)
+    return jnp.linalg.cholesky(cov)
 
-def nlog_density(time, data, err, nlogpr_logfreq, nlogpr0, floating_mean= True, temp_func= periodogram.basic):
+
+
+
+def nlog_density(time, data, err, band_mask, temp_func= periodogram.basic):
     """y = log z"""
-    
+
+    sizes = jnp.sum(band_mask, axis= 1).astype(int)
+
     def nloglik1(y):
         """ -log p(x | z)
-            z = (frequency, sigma, tau), phase and amplitude ar maximized analytically
+            z = (frequency, sigmas, tau), phase and amplitude are maximized analytically
         """
         
-        freq, sigma, tau = jnp.exp(y)
-        
-        # covariance matrix
-        cov = covariance(time, drw_kernel(sigma, tau), err)
-        sqrt_cov = jnp.linalg.cholesky(cov)
+        freq, *null_params = jnp.exp(y)
+
+        # covariance matrix        
+        sqrt_cov = sqrt_multiband_drw_covariance(time, err, null_params, sizes)
         
         # likelihood ratio (at maximal amplitudes) = log p(x|freq, null_params) / p(x|null_params)
         # note that this is not the maximum log-likelihood ratio, because params are not optimized for the null
-        logp_ratio = 0.5* periodogram.lomb_scargle(time, data, floating_mean= floating_mean, sqrt_cov= sqrt_cov, temp_func= temp_func)(freq)[0]
-        
-        # eliminate p(x | null_params)
-        loglik0 = periodogram.loglik_null(data, sqrt_cov)
-        return -logp_ratio - loglik0
-    
-    def nloglik0(y):
-        """z = (sigma, tau)"""
-        sigma, tau = jnp.exp(y)
-        cov = covariance(time, drw_kernel(sigma, tau), err)
-        sqrt_cov = jnp.linalg.cholesky(cov)
-        return -periodogram.loglik_null(data, sqrt_cov)
-    
-    
-    def nlogpost0(y):
-        return nlogpr0(y) + nloglik0(y)
+        logp1 = 0.5* periodogram.lomb_scargle(time, data, sqrt_cov= sqrt_cov, temp_func= temp_func, const_only= False, band_mask= band_mask)(freq)[0]
 
-    def nlogpost1(y):
-        return nlogpr0(y[1:]) + nlogpr_logfreq(y[0]) + nloglik1(y)
+        logdet = periodogram.log_determinant_term(sqrt_cov)
+        return -logp1 - logdet
     
-    def get_amp(y):
+
+    def nloglik0(y):
+        """z = (sigmas, tau)"""
         
-        freq, sigma, tau = jnp.exp(y)
+        # covariance matrix        
+        sqrt_cov = sqrt_multiband_drw_covariance(time, err, jnp.exp(y), sizes)
         
-        # covariance matrix
-        cov = covariance(time, drw_kernel(sigma, tau), err)
-        sqrt_cov = jnp.linalg.cholesky(cov)
+        # likelihood ratio (at maximal amplitudes) = log p(x|freq, null_params) / p(x|null_params)
+        # note that this is not the maximum log-likelihood ratio, because params are not optimized for the null
+        logp1 = 0.5* periodogram.lomb_scargle(time, data, sqrt_cov= sqrt_cov, temp_func= temp_func, const_only= True, band_mask= band_mask)(0.)[0]
+
+        logdet = periodogram.log_determinant_term(sqrt_cov)
+        return -logp1 - logdet
+    
         
-        return periodogram.lomb_scargle(time, data, floating_mean= floating_mean, sqrt_cov= sqrt_cov, temp_func= temp_func)(freq)[1]
-        
-        
-        
-    return nlogpost0, nlogpost1, nloglik0, nloglik1, get_amp
+    return nloglik1, nloglik0
 
