@@ -29,14 +29,14 @@ errors= jnp.concatenate(errors)
 # simualte the data (here the entire data in all bands is simulated at once, when you use real lightcurves, construct them like errors and time was constructed here)
 # DRW params
 sigmas = jnp.array([1., 3., 0.5])
-tau = 3
+tau = 1.
 # construct the covariance matrix (also between the bands)
 cov = psd.multiband_covariance(time, psd.drw_kernel(1., tau), errors, drw_amp= sigmas, sizes= [len(t1), len(t2), len(t3)])
 data = gauss_noise(key_data, cov) # generate the noise with this covariance matrix
 
 # inject signal
 period_true = 2.
-signal =  jnp.sin(2 * jnp.pi * time / period_true) * jnp.sum(band_mask * jnp.array([3., 2., 0.5])[:, None], axis = 0)
+signal =  0. * jnp.sin(2 * jnp.pi * time / period_true) * jnp.sum(band_mask * jnp.array([3., 2., 0.5])[:, None], axis = 0)
 data += signal
 
 # make different bands have different magnitudes
@@ -111,9 +111,9 @@ def likelihood_ratio(time, data, errors, band_mask, init_null, freq_grid, temp_f
 
     nlogp1, nlogp0 = psd.nlog_density(time, data, errors, band_mask, temp_func= temp_func) # get the likelihoods
 
-
+    y = jnp.log(init_null)
     ### optimize the null model ###
-    opt_null = minimize(jax.value_and_grad(nlogp0), x0 = init_null, method= 'BFGS', jac= True, options= {'maxiter': 50})
+    opt_null = minimize(jax.value_and_grad(nlogp0), x0 = y, method= 'BFGS', jac= True, options= {'maxiter': 50})
     print(opt_null)
     print(jnp.exp(opt_null.x))
 
@@ -132,10 +132,10 @@ def likelihood_ratio(time, data, errors, band_mask, init_null, freq_grid, temp_f
     print(opt_signal)
     print(jnp.exp(opt_signal.x))
 
-    return opt_null.fun - opt_signal.fun
+    #return opt_null.fun - opt_signal.fun
 
 freq_grid = jnp.linspace(0.2, 5, 1000) # change this in real problems
-init_null = jnp.log(jnp.array([1., 3., 0.5, 3.])) # initial condition (change this)
+init_null = jnp.array([1., 3., 0.5, 1.]) # initial condition (change this)
 
 chi2 = likelihood_ratio(time, data, errors, band_mask, init_null, freq_grid, temp_func= periodogram.basic)
 

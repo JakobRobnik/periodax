@@ -45,10 +45,10 @@ def nlog_density(time, data, err, band_mask, temp_func= periodogram.basic):
         
         # likelihood ratio (at maximal amplitudes) = log p(x|freq, null_params) / p(x|null_params)
         # note that this is not the maximum log-likelihood ratio, because params are not optimized for the null
-        logp1 = 0.5* periodogram.lomb_scargle(time, data, sqrt_cov= sqrt_cov, temp_func= temp_func, const_only= False, band_mask= band_mask)(freq)[0]
+        logp = 0.5* periodogram.lomb_scargle(time, data, sqrt_cov= sqrt_cov, temp_func= temp_func, const_only= False, band_mask= band_mask)(freq)[0]
 
         logdet = periodogram.log_determinant_term(sqrt_cov)
-        return -logp1 - logdet
+        return -logp - logdet
     
 
     def nloglik0(y):
@@ -59,10 +59,10 @@ def nlog_density(time, data, err, band_mask, temp_func= periodogram.basic):
         
         # likelihood ratio (at maximal amplitudes) = log p(x|freq, null_params) / p(x|null_params)
         # note that this is not the maximum log-likelihood ratio, because params are not optimized for the null
-        logp1 = 0.5* periodogram.lomb_scargle(time, data, sqrt_cov= sqrt_cov, temp_func= temp_func, const_only= True, band_mask= band_mask)(0.)[0]
+        logp = 0.5* periodogram.lomb_scargle(time, data, sqrt_cov= sqrt_cov, temp_func= temp_func, const_only= True, band_mask= band_mask)(0.)[0]
 
         logdet = periodogram.log_determinant_term(sqrt_cov)
-        return -logp1 - logdet
+        return -logp - logdet
     
         
     return nloglik1, nloglik0
