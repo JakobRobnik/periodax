@@ -137,6 +137,6 @@ def likelihood_ratio(time, data, errors, band_mask, init_null, freq_grid, temp_f
 freq_grid = jnp.linspace(0.2, 5, 1000) # change this in real problems
 init_null = jnp.array([1., 3., 0.5, 1.]) # initial condition (change this)
 
-chi2 = likelihood_ratio(time, data, errors, band_mask, init_null, freq_grid, temp_func= periodogram.basic)
+chi2 = 2 * likelihood_ratio(time, data, errors, band_mask, init_null, freq_grid, temp_func= periodogram.basic)
 
 print(chi2)
