@@ -53,7 +53,7 @@ def quadrature(nlogp, MAP, quad_scheme):
     D, Q = jnp.linalg.eigh(MAP.cov)
     
     if jnp.any(D < 0.):
-        return 0., False
+        return np.nan, False
         
     M = jnp.sqrt(2)* jnp.dot(Q, jnp.diag(jnp.sqrt(D))) 
     
